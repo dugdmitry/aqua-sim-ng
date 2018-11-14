@@ -276,6 +276,7 @@ AquaSimMac::PowerOff()
 Time
 AquaSimMac::GetTxTime(int pktLen, std::string * modName)
 {
+//	std::cout << "PACKET_LENGTH: " << pktLen << "\n";
   return Phy()->CalcTxTime(pktLen, modName);
 }
 

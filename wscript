@@ -7,7 +7,7 @@ def configure(conf):
      conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('aqua-sim-ng', ['network', 'energy', 'mobility', 'internet'])
+    module = bld.create_ns3_module('aqua-sim-ng', ['network', 'energy', 'mobility'])
     module.source = [
         'model/aqua-sim-address.cc',
         'model/aqua-sim-pt-tag.cc',
@@ -25,6 +25,7 @@ def build(bld):
         'model/aqua-sim-noise-generator.cc',
         'model/aqua-sim-phy.cc',
         'model/aqua-sim-phy-cmn.cc',
+        'model/aqua-sim-phy-multi.cc',
         'model/aqua-sim-propagation.cc',
         'model/aqua-sim-range-propagation.cc',
         'model/aqua-sim-simple-propagation.cc',
@@ -34,6 +35,7 @@ def build(bld):
         'model/aqua-sim-sinr-checker.cc',
         'helper/aqua-sim-helper.cc',
         'model/aqua-sim-mac-broadcast.cc',
+        'model/aqua-sim-mac-multichannel.cc',
         'model/aqua-sim-mac-fama.cc',
         'model/aqua-sim-mac-aloha.cc',
         'model/aqua-sim-mac-copemac.cc',
@@ -101,6 +103,7 @@ def build(bld):
         'model/aqua-sim-noise-generator.h',
         'model/aqua-sim-phy.h',
         'model/aqua-sim-phy-cmn.h',
+        'model/aqua-sim-phy-multi.h',
         'model/aqua-sim-propagation.h',
         'model/aqua-sim-range-propagation.h',
         'model/aqua-sim-simple-propagation.h',
@@ -110,6 +113,7 @@ def build(bld):
         'model/aqua-sim-sinr-checker.h',
         'helper/aqua-sim-helper.h',
         'model/aqua-sim-mac-broadcast.h',
+        'model/aqua-sim-mac-multichannel.h',
         'model/aqua-sim-mac-fama.h',
         'model/aqua-sim-mac-aloha.h',
         'model/aqua-sim-mac-copemac.h',

@@ -78,6 +78,7 @@ namespace ns3 {
     virtual void SetSignalCache(Ptr<AquaSimSignalCache> sC) = 0;
     virtual void AddModulation(Ptr<AquaSimModulation> modulation, std::string modulationName) = 0;
     Ptr<AquaSimNetDevice> GetNetDevice ();
+    std::vector<Ptr<AquaSimChannel> > GetChannel ();
     Ptr<AquaSimMac> GetMac();
     Ptr<AquaSimEnergyModel> EM();
 
@@ -138,6 +139,13 @@ namespace ns3 {
     typedef void (* TxCallback)(std::string path, Ptr<Packet> p);
     void NotifyTx(Ptr<Packet> packet);
     void NotifyRx(Ptr<Packet> packet);
+
+    // For multichannel MAC/PHY
+    virtual void AllocateSubchannels () = 0;
+    virtual void SetSubchannelId (int channel_id) = 0;
+    virtual int GetSubchannelId () = 0;
+    virtual void SetChannelId (int channel_id) = 0;
+    virtual int GetChannelId () = 0;
 
   protected:
     virtual Ptr<Packet> PrevalidateIncomingPkt(Ptr<Packet> p) = 0;

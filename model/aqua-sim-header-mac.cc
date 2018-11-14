@@ -25,6 +25,9 @@
 #include "ns3/log.h"
 #include "ns3/buffer.h"
 
+#include <algorithm>
+
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("MacHeader");
@@ -345,6 +348,11 @@ AlohaHeader::GetTypeId()
   return tid;
 }
 
+int
+AlohaHeader::size()
+{
+  return sizeof(AquaSimAddress)*2 + 1; /*for packet_type*/
+}
 void
 AlohaHeader::SetSA(AquaSimAddress sa)
 {
@@ -442,6 +450,11 @@ FamaHeader::GetTypeId()
   return tid;
 }
 
+int
+FamaHeader::size()
+{
+  return sizeof(AquaSimAddress)*4 + 1; /*for packet_type*/
+}
 void
 FamaHeader::SetSA(AquaSimAddress sa)
 {
@@ -863,3 +876,207 @@ LocalizationHeader::GetInstanceTypeId(void) const
 {
   return GetTypeId();
 }
+
+
+
+//////////////////////////
+//////////////////////////
+
+/*
+ * MultichannelHeader
+ */
+MultichannelHeader::MultichannelHeader()
+{
+}
+
+MultichannelHeader::~MultichannelHeader()
+{
+}
+
+TypeId
+MultichannelHeader::GetTypeId()
+{
+  static TypeId tid = TypeId("ns3::MultichannelHeader")
+    .SetParent<Header>()
+    .AddConstructor<MultichannelHeader>()
+  ;
+  return tid;
+}
+
+uint32_t
+MultichannelHeader::GetSerializedSize(void) const
+{
+	if (m_pType == MMAC_RTS)
+	{
+		return 11 + 1;
+	}
+	if (m_pType == MMAC_CTS)
+	{
+		return 3 + 1;
+	}
+	else
+	{
+		return 1 + 1;
+	}
+}
+
+void
+MultichannelHeader::Serialize (Buffer::Iterator start) const
+{
+      Buffer::Iterator i = start;
+      i.WriteU8((uint16_t)(m_pType));
+      i.WriteU8((uint16_t)(m_channel_id));
+
+//	  start.WriteU8 (m_pType);
+//	  start.WriteU8 (m_channel_id);
+
+	if (m_pType == MMAC_RTS)
+	{
+//	    Buffer::Iterator i = start;
+	    i.WriteU16 ((uint16_t)(m_available_slots.at(0)));
+	    i.WriteU16 ((uint16_t)(m_available_slots.at(1)));
+	    i.WriteU16 ((uint16_t)(m_available_slots.at(2)));
+	    i.WriteU16 ((uint16_t)(m_available_slots.at(3)));
+	    i.WriteU16 ((uint16_t)(m_available_slots.at(4)));
+
+	//  i.WriteU32 ((uint32_t)(m_nodePosition.x*1000.0));
+	//  i.WriteU32 ((uint32_t)(m_nodePosition.y*1000.0));
+	//  i.WriteU32 ((uint32_t)(m_nodePosition.z*1000.0));
+	//  i.WriteU32 ((uint32_t)(m_confidence*1000.0));
+	}
+
+	if (m_pType == MMAC_CTS)
+	{
+//		Buffer::Iterator i = start;
+		i.WriteU16 ((uint16_t)(m_cts_selected_slot));
+	}
+}
+uint32_t
+MultichannelHeader::Deserialize (Buffer::Iterator start)
+{
+//  Buffer::Iterator i = start;
+//  m_nodePosition.x = ( (double) i.ReadU32() ) / 1000.0;
+//  m_nodePosition.y = ( (double) i.ReadU32() ) / 1000.0;
+//  m_nodePosition.z = ( (double) i.ReadU32() ) / 1000.0;
+//  m_confidence = ((double) i.ReadU32())/1000.0;
+//
+//  return GetSerializedSize();
+
+	  Buffer::Iterator i = start;
+	  m_pType = i.ReadU8();
+	  m_channel_id = i.ReadU8();
+
+	  if (m_pType == MMAC_RTS)
+	  {
+		  m_available_slots.push_back(i.ReadU16());
+		  m_available_slots.push_back(i.ReadU16());
+		  m_available_slots.push_back(i.ReadU16());
+		  m_available_slots.push_back(i.ReadU16());
+		  m_available_slots.push_back(i.ReadU16());
+	  }
+
+		if (m_pType == MMAC_CTS)
+		{
+			m_cts_selected_slot = i.ReadU16();
+		}
+
+
+	  return GetSerializedSize();
+
+}
+void
+MultichannelHeader::Print (std::ostream &os) const
+{
+	  os << "Multichannel MAC Header: packet_type=";
+	  switch(m_pType) {
+	    case MMAC_RTS:
+	    	{
+	    		os << "MMAC_RTS\n";
+	    		// Print available slots
+	    		os << "RTS available slots: ";
+	    		for (auto i = m_available_slots.begin(); i != m_available_slots.end(); ++i)
+	    		{
+	    			os << *i << ' ';
+	    		}
+	    		break;
+	    	}
+	    case MMAC_CTS:
+	    	{
+	    		os << "MMAC_CTS\n";
+	    		// Print selected slot for DATA RX
+	    		os << "CTS slot for DATA RX: " << m_cts_selected_slot;
+	    		break;
+	    	}
+	    case MMAC_DATA: os << "MMAC_DATA"; break;
+	    default: break;
+	  }
+
+}
+
+TypeId
+MultichannelHeader::GetInstanceTypeId(void) const
+{
+  return GetTypeId();
+}
+
+uint8_t
+MultichannelHeader::GetPType()
+{
+  return m_pType;
+}
+
+void
+MultichannelHeader::SetPType(uint8_t pType)
+{
+  m_pType = pType;
+}
+
+void MultichannelHeader::AddChannelId (int channel_id)
+{
+	m_channel_id = channel_id;
+}
+
+int MultichannelHeader::GetChannelId()
+{
+	return m_channel_id;
+}
+
+void
+MultichannelHeader::AddSlotToRts(uint16_t slot_number)
+{
+	m_available_slots.push_back(slot_number);
+}
+
+int
+MultichannelHeader::GetSlotFromRts(int index)
+{
+	return m_available_slots.at(index);
+}
+
+// Return maximum available slot number from RTS
+int
+MultichannelHeader::GetMaxRtsSlot()
+{
+	if (m_pType == MMAC_RTS)
+	{
+		uint16_t max_slot = *max_element(m_available_slots.begin(), m_available_slots.end());
+		return max_slot;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+void
+MultichannelHeader::AddDataRxSlotForCts(int slot_number)
+{
+	m_cts_selected_slot = slot_number;
+}
+
+int
+MultichannelHeader::GetDataRxSlotFromCts()
+{
+	return m_cts_selected_slot;
+}
+

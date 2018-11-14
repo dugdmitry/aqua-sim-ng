@@ -320,7 +320,6 @@ private:
   double m_cyclePeriod;
 };  // class UwanSyncHeader
 
-
 /**
  * \brief Localization header
  */
@@ -348,6 +347,65 @@ private:
   Vector m_nodePosition;
   double m_confidence;
 };  // class LocalizationHeader
+
+/**
+ * \brief MultichannelHeader header
+ */
+class MultichannelHeader : public Header
+{
+public:
+
+	  enum PacketType {
+	  MMAC_RTS,
+	  	MMAC_CTS,
+	  	MMAC_DATA
+	  } packet_type;
+
+
+  MultichannelHeader();
+  virtual ~MultichannelHeader();
+  static TypeId GetTypeId(void);
+
+  void SetPType(uint8_t pType);
+  uint8_t GetPType();
+
+  //inherited methods
+  virtual uint32_t GetSerializedSize(void) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual void Print (std::ostream &os) const;
+  virtual TypeId GetInstanceTypeId(void) const;
+
+  // Add available slot number to RTS
+  void AddSlotToRts (uint16_t slot_number);
+
+  void AddChannelId (int channel_id);
+  int GetChannelId ();
+
+  // Get available slot from RTS by index in the vector
+  int GetSlotFromRts (int index);
+
+  // Get the highest number of among available slots in RTS
+  int GetMaxRtsSlot ();
+
+  // Add selected DATA RX slot in CTS
+  void AddDataRxSlotForCts (int slot_number);
+
+  // Return selected DATA RX slot number from CTS
+  int GetDataRxSlotFromCts ();
+
+  uint32_t m_serialized_size;
+
+private:
+  uint8_t m_pType;
+  uint8_t m_channel_id = 0;
+  // Create a list of available slots to add to RTS
+  std::vector<uint16_t> m_available_slots;
+  // Store selected slot for CTS
+  uint16_t m_cts_selected_slot;
+
+};  // class MultichannelHeader
+
 
 } // namespace ns3
 

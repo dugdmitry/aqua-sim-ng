@@ -83,6 +83,8 @@ PktSubmissionTimer::AddNewSubmission(Ptr<IncomingPacket> inPkt) {
 
   /* Need to calcuate modulation here, aka how long until entire packet is received */
   Time transmissionDelay = m_sC->m_phy->CalcTxTime(asHeader.GetSize());
+//  std::cout << "SIZE: " << asHeader.GetSize() << "\n";
+//  std::cout << "TRANSMISSION_DELAY: " << m_sC->m_phy->CalcTxTime(asHeader.GetSize()) << "\n";
 
   NS_LOG_FUNCTION(this << "incomingPkt:" << inPkt << "txtime:" <<
                     asHeader.GetTxTime() << " transmissionDelay:" <<
@@ -145,7 +147,6 @@ AquaSimSignalCache::AddNewPacket(Ptr<Packet> p){
 
   NS_LOG_DEBUG("AddNewPacket:" << p << " w/ Error flag:" << asHeader.GetErrorFlag() << " and incomingpkt:" << inPkt);
 
-
   m_pktSubTimer->AddNewSubmission(inPkt);
 
   inPkt->next = m_head->next;
@@ -153,6 +154,7 @@ AquaSimSignalCache::AddNewPacket(Ptr<Packet> p){
 
   m_pktNum++;
   m_totalPS += m_phy->EM()->GetRxPower();
+
   UpdatePacketStatus();
 }
 
@@ -243,7 +245,9 @@ AquaSimSignalCache::UpdatePacketStatus(){
 	//,SINR = 0; 		//currently not used
 
   for (Ptr<IncomingPacket> ptr = m_head->next; ptr != NULL; ptr = ptr->next) {
+
     ps = m_phy->EM()->GetRxPower();
+
     noise = m_totalPS - ps;
 
     if (ptr->status != AquaSimPacketStamp::RECEPTION)

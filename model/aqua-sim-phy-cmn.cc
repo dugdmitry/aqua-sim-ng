@@ -68,7 +68,9 @@ AquaSimPhyCmn::AquaSimPhyCmn(void) :
   m_lambda = 0.0;
   m_L = 0;
   m_K = 2.0;
-  m_freq = 25;
+//  m_freq = 25;
+  m_freq = 10;
+
   m_transRange=-1;
 
   m_modulationName = "default";
@@ -112,7 +114,8 @@ AquaSimPhyCmn::GetTypeId(void)
       MakeDoubleAccessor(&AquaSimPhyCmn::m_pT),
       MakeDoubleChecker<double>())
     .AddAttribute("Frequency", "The frequency, default is 25(khz).",
-      DoubleValue(25),
+//      DoubleValue(25),
+      DoubleValue(10),
       MakeDoubleAccessor(&AquaSimPhyCmn::m_freq),
       MakeDoubleChecker<double>())
     .AddAttribute("L", "System loss default factor.",
@@ -352,15 +355,19 @@ AquaSimPhyCmn::Recv(Ptr<Packet> p)
   if (asHeader.GetDirection() == AquaSimHeader::DOWN) {
     NS_LOG_DEBUG("Phy_Recv DOWN. Pkt counter(" << outPktCounter++ << ") on node(" <<
 		 GetNetDevice()->GetAddress() << ")");
+
     PktTransmit(p);
   }
   else {
+
     if (asHeader.GetDirection() != AquaSimHeader::UP) {
       NS_LOG_WARN("Direction for pkt-flow not specified, "
 	      "sending pkt up the stack on default.");
     }
+
     NS_LOG_DEBUG("Phy_Recv UP. Pkt counter(" << incPktCounter++ << ") on node(" <<
 		 GetNetDevice()->GetAddress() << ")");
+
     p = PrevalidateIncomingPkt(p);
 
     if (p != NULL) {
@@ -368,6 +375,7 @@ AquaSimPhyCmn::Recv(Ptr<Packet> p)
       m_sC->AddNewPacket(p);
     }
   }
+
   return true;
 }
 
@@ -433,6 +441,9 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
       GetNetDevice()->SetTransmissionStatus(RECV);
       //SetPhyStatus(PHY_RECV);
       //finish recv packet
+
+//      std::cout << "CALC_TX_TIME: " << CalcTxTime(asHeader.GetSize()) << "\n";
+
       Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
   }
 
@@ -445,7 +456,7 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
   }
 
   p->AddHeader(asHeader);
-  //p->AddHeader(pstamp); no longer needed.
+//  p->AddHeader(pstamp);  //no longer needed.
 
   return p;
 }
@@ -459,6 +470,7 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
 
   AquaSimPacketStamp pstamp;
   AquaSimHeader asHeader;
+
   p->RemoveHeader(pstamp);  //awkward but for universal encapsulation.
   p->PeekHeader(asHeader);
 
@@ -502,6 +514,7 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   StampTxInfo(p);
 
   Time txSendDelay = this->CalcTxTime(asHeader.GetSize(), &m_modulationName );
+
   Simulator::Schedule(txSendDelay, &AquaSimNetDevice::SetTransmissionStatus, GetNetDevice(), NIDLE);
   //Simulator::Schedule(txSendDelay, &AquaSimPhyCmn::SetPhyStatus, this, PHY_IDLE);
   /**
@@ -512,6 +525,7 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   * NOTE channelId must be set by upper layer and AquaSimPhyCmn::Recv() should be edited accordingly.
   */
   NotifyTx(p);
+
   m_txLogger(p, m_sC->GetNoise());
   return m_channel.at(channelId)->Recv(p, this);
 }
@@ -706,6 +720,7 @@ Time
 AquaSimPhyCmn::CalcTxTime (uint32_t pktSize, std::string * modName)
 {
   //NS_ASSERT(modName == NULL);
+
   return Time::FromDouble(m_modulations.find(m_modulationName)->second->TxTime(pktSize*8), Time::S)
       + Time::FromInteger(Preamble(), Time::S);
 }
@@ -749,4 +764,38 @@ AquaSimPhyCmn::AssignStreams (int64_t stream)
 {
   NS_LOG_FUNCTION (this << stream);
   return 0;
+}
+
+// Set bandwidth to the given modulation
+void
+AquaSimPhyCmn::SetBandwidth (double bandwidth_value)
+{
+	m_modulations.at("default")->SetAttribute("SPS", UintegerValue(bandwidth_value));
+}
+
+void
+AquaSimPhyCmn::AllocateSubchannels ()
+{
+}
+
+void
+AquaSimPhyCmn::SetSubchannelId (int channel_id)
+{
+}
+
+void
+AquaSimPhyCmn::SetChannelId (int channel_id)
+{
+}
+
+int
+AquaSimPhyCmn::GetSubchannelId ()
+{
+	return 0;
+}
+
+int
+AquaSimPhyCmn::GetChannelId ()
+{
+	return 0;
 }

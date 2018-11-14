@@ -39,6 +39,7 @@
 #include "aqua-sim-energy-model.h"
 #include "aqua-sim-modulation.h"
 
+
 //Aqua Sim Phy Cmn
 
 namespace ns3 {
@@ -118,6 +119,16 @@ public:
   virtual void SetTransRange(double range);
   virtual double GetTransRange();
 
+  // Set bandwidth in the modulation
+  void SetBandwidth (double bandwidth_value);
+
+  // For multichannel MAC/PHY
+  virtual void AllocateSubchannels ();
+  virtual void SetSubchannelId (int channel_id);
+  virtual int GetSubchannelId ();
+  void SetChannelId (int channel_id);
+  virtual int GetChannelId ();
+
 protected:
   virtual Ptr<Packet> PrevalidateIncomingPkt(Ptr<Packet> p);
   virtual void UpdateTxEnergy(Time txTime);
@@ -190,6 +201,9 @@ private:
 
   ns3::TracedCallback<Ptr<Packet>, double > m_rxLogger;
   ns3::TracedCallback<Ptr<Packet>, double > m_txLogger;
+
+//  // FOR MMAC DEV
+//  int m_channel_id = 0;
 
 }; //AquaSimPhyCmn
 

@@ -205,6 +205,10 @@ AquaSimChannel::SendUp (Ptr<Packet> p, Ptr<AquaSimPhy> tifp)
     NS_LOG_DEBUG ("Channel. NodeS:" << sender->GetAddress() << " NodeR:" << recver->GetAddress() << " S.Phy:" << sender->GetPhy() << " R.Phy:" << recver->GetPhy() << " packet:" << p
 		  << " TxTime:" << asHeader.GetTxTime() << pDelay);
 
+    // For MMAC dev
+//    rifp->SetSubchannelId(tifp->GetChannelId() + 1);
+//    std::cout << "SUBCHANNEL ID:" << tifp->GetChannelId() + 1 << "\n";
+
     Simulator::Schedule(pDelay, &AquaSimPhy::Recv, rifp, p->Copy());
 
     /* TODO in future support multiple phy with below code.

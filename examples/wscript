@@ -24,3 +24,19 @@ def build(bld):
 
     obj = bld.create_ns3_program('FloodingMac', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
     obj.source = 'floodMac.cc'
+    
+    obj = bld.create_ns3_program('MultichannelMacExample', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'multichannel_mac_example.cc'
+    
+    obj = bld.create_ns3_program('MMAC_dev', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'MMAC_dev.cc'
+
+    obj = bld.create_ns3_program('MAC_collision_test', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_collision_test.cc'
+    
+    obj = bld.create_ns3_program('Throughput_test', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'throughput_test.cc'
+    
+    obj = bld.create_ns3_program('MMAC_tests', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mmac_tests.cc'
+    

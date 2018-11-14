@@ -73,6 +73,12 @@ AquaSimPhy::GetNetDevice()
   return m_device;
 }
 
+std::vector<Ptr<AquaSimChannel> >
+AquaSimPhy::GetChannel()
+{
+  return m_channel;
+}
+
 Ptr<AquaSimMac>
 AquaSimPhy::GetMac()
 {
