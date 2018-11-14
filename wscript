@@ -33,6 +33,7 @@ def build(bld):
        # 'model/aqua-sim-sink.cc',
         'model/aqua-sim-sinr-checker.cc',
         'helper/aqua-sim-helper.cc',
+       # Add mac_rouring model here
         'model/aqua-sim-mac-broadcast.cc',
         'model/aqua-sim-mac-fama.cc',
         'model/aqua-sim-mac-aloha.cc',
