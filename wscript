@@ -33,8 +33,8 @@ def build(bld):
        # 'model/aqua-sim-sink.cc',
         'model/aqua-sim-sinr-checker.cc',
         'helper/aqua-sim-helper.cc',
-       # Add mac_rouring model here
         'model/aqua-sim-mac-broadcast.cc',
+        'model/aqua-sim-mac-routing.cc',
         'model/aqua-sim-mac-fama.cc',
         'model/aqua-sim-mac-aloha.cc',
         'model/aqua-sim-mac-copemac.cc',
@@ -111,6 +111,7 @@ def build(bld):
         'model/aqua-sim-sinr-checker.h',
         'helper/aqua-sim-helper.h',
         'model/aqua-sim-mac-broadcast.h',
+        'model/aqua-sim-mac-routing.h',
         'model/aqua-sim-mac-fama.h',
         'model/aqua-sim-mac-aloha.h',
         'model/aqua-sim-mac-copemac.h',

@@ -349,6 +349,59 @@ private:
   double m_confidence;
 };  // class LocalizationHeader
 
+
+/**
+ * \brief mac-routing header
+ */
+class MacRoutingHeader : public Header
+{
+public:
+	MacRoutingHeader();
+  virtual ~MacRoutingHeader();
+  static TypeId GetTypeId(void);
+
+  void SetPType(uint8_t m_ptype);
+  int GetPType();
+  void SetId(uint32_t m_header_id);
+  void SetHopCount(uint8_t m_hop_count);
+
+  void SetSrcAddr (AquaSimAddress src_addr);
+  void SetDstAddr (AquaSimAddress dst_addr);
+
+  AquaSimAddress GetSrcAddr ();
+  AquaSimAddress GetDstAddr ();
+
+  void SetReward (uint8_t reward_value);
+  int GetReward ();
+
+  int GetHopCount ();
+  void IncrementHopCount ();
+
+  //inherited methods
+  virtual uint32_t GetSerializedSize(void) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual void Print (std::ostream &os) const;
+  virtual TypeId GetInstanceTypeId(void) const;
+
+private:
+  // Packet type: 0 - data_packet, 1 - RREQ, 2 - RREP, 3 - ACK
+  uint8_t m_ptype;
+  // Unique header ID
+  uint32_t m_header_id;
+  // Hop count
+  uint8_t m_hop_count = 0;
+  // Source address
+  AquaSimAddress m_src_addr;
+  // Destination address
+  AquaSimAddress m_dst_addr;
+  // Reward value
+  uint8_t m_reward = 0;
+  // Message ID the ACK is replying to
+  uint32_t m_ack_message_id = 0;
+
+};  // class MacRoutingHeader
+
 } // namespace ns3
 
 #endif /* AQUA_SIM_HEADER_MAC_H */
