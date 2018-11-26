@@ -422,6 +422,7 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
               || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
 				      || pstamp.GetPr() < m_RXThresh)
   {
+
     /**
     * p still can pass since its signal may affect other packets
     * when this node wake up or start to receive other packets

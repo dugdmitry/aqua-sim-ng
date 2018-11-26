@@ -892,7 +892,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	if (m_ptype == 0)
 	{
 		// ptype + header_id + hop_count [in bytes]
-		return 6;
+		return 6 + 4;
 	}
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
@@ -902,7 +902,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	// ACK
 	if (m_ptype == 3)
 	{
-		return 1 + 4 + 1 + 4;
+		return 1 + 4 + 1 + 4 + 4;
 	}
 
 	// This should not happen
@@ -918,6 +918,8 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU8 ((uint8_t)(m_ptype));
 	  i.WriteU32 ((uint32_t)(m_header_id));
 	  i.WriteU8 ((uint8_t)(m_hop_count));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
   }
   if (m_ptype == 1)
   {
@@ -941,6 +943,8 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU32 ((uint32_t)(m_header_id));
 	  i.WriteU8 ((uint8_t)(m_reward));
 	  i.WriteU32 ((uint32_t)(m_ack_message_id));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
   }
 }
 
@@ -953,9 +957,11 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 
   if (m_ptype == 0)
   {
-	  m_ptype = i.ReadU8();
+//	  m_ptype = i.ReadU8();
 	  m_header_id = i.ReadU32();
 	  m_hop_count = i.ReadU8();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
   }
   if (m_ptype == 1)
   {
@@ -979,6 +985,8 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_header_id = i.ReadU32();
 	  m_reward = i.ReadU8();
 	  m_ack_message_id = i.ReadU32();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
   }
 
   return GetSerializedSize();

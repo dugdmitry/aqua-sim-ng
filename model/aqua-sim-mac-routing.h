@@ -12,7 +12,7 @@
 namespace ns3 {
 
 #define BC_BACKOFF  0.1//0.5 //default is 0.1 the maximum time period for backoff
-#define BC_MAXIMUMCOUNTER 4//15 //default is 4 the maximum number of backoff
+#define BC_MAC_ROUTING_MAXIMUMCOUNTER 4//15 //default is 4 the maximum number of backoff
 #define BC_CALLBACK_DELAY 0.0001 // the interval between two consecutive sendings
 
 /**
@@ -37,6 +37,10 @@ public:
 
   // Forward packet / frame from upper layers / network
   bool ForwardPacket (Ptr<Packet>);
+
+  // Send down frame using broadcast-mac backoff logic
+  bool SendDownFrame (Ptr<Packet>);
+
   // Select next_hop_node for given destination, return its address
   AquaSimAddress SelectNextHop (AquaSimAddress dst_addr);
 
@@ -47,9 +51,11 @@ public:
   // Generate and send reward packet
   double GenerateReward (AquaSimAddress dst_addr);
   void SendReward (AquaSimAddress dst_addr, double reward, Ptr<Packet> p);
+  // Schedule reward send events
+  void SendRewardHandler (std::map<AquaSimAddress, AquaSimAddress> dst_sender_map, double reward, Ptr<Packet> p);
 
   // Update path weight in forwarding table by corresponding reward value
-  void UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
+  bool UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
 
   // Calculate initial weight based on received RREQ/RREP frames
   double CalculateWeight (Ptr<Packet> frame);
@@ -90,16 +96,16 @@ private:
   // Store list of already received RREPs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_rrep_list;
 
-  // Store list of timestamps on receiver side to periodically generate the reward packets back to sender
+  // Store list of {dst_addr, sender_addr} pairs to periodically generate the reward packets back to sender
   std::map<std::map<AquaSimAddress, AquaSimAddress>, Time> m_reward_delays;
 
   // ACK / Reward delay on receiver side
   Time m_reward_delay = Seconds(1);
   // Reward wait timeout, in seconds
-  Time m_reward_timeout = Seconds(2) + m_reward_delay;
+  Time m_reward_timeout = Seconds(30) + m_reward_delay;
 
   // RREP wait timeout, in seconds
-  Time m_rrep_timeout = Seconds(5);
+  Time m_rrep_timeout = Seconds(100);
 
   // Default negative reward value
   double m_negative_reward = -1;
