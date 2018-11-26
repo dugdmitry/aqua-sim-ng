@@ -30,4 +30,6 @@ def build(bld):
 
     obj = bld.create_ns3_program('MacRoutingChainTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
     obj.source = 'mac_routing_chain_topology.cc'
-    
+
+    obj = bld.create_ns3_program('MacRoutingGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_grid_test.cc'

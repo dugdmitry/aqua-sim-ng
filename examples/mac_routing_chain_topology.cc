@@ -32,7 +32,7 @@ int
 main (int argc, char *argv[])
 {
   double simStop = 100; //seconds
-  int intermediate_nodes = 2;
+  int intermediate_nodes = 1;
 
   // Total number of nodes, including source and destination
   int nodes = intermediate_nodes + 2;
