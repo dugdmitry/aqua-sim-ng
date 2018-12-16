@@ -111,7 +111,8 @@ namespace ns3 {
 
     virtual Ptr<AquaSimSignalCache> GetSignalCache() = 0;
 
-
+    // Add method for setting Pt - transmission power in Watts
+    virtual void SetPt(double p_t) = 0;
     virtual double GetPt() = 0;
     virtual double GetRXThresh() = 0;
     virtual double GetCSThresh() = 0;

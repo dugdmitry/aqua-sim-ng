@@ -897,12 +897,27 @@ MacRoutingHeader::GetSerializedSize(void) const
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
 	{
-		return 1 + 4 + 1 + 2 + 2;
+		return 1 + 4 + 1 + 2 + 2 + 16;	// Add tx/rx parameters
 	}
 	// ACK
 	if (m_ptype == 3)
 	{
-		return 1 + 4 + 1 + 4 + 4;
+		return 1 + 4 + 4 + 4 + 4 + 16;	// Add tx/rx parameters
+	}
+	// INIT
+	if (m_ptype == 4)
+	{
+		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
+	}
+	// RTS
+	if (m_ptype == 4)
+	{
+		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
+	}
+	// CTS
+	if (m_ptype == 4)
+	{
+		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
 	}
 
 	// This should not happen
@@ -920,6 +935,9 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU8 ((uint8_t)(m_hop_count));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
   }
   if (m_ptype == 1)
   {
@@ -928,6 +946,9 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU8 ((uint8_t)(m_hop_count));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
   }
   if (m_ptype == 2)
   {
@@ -936,16 +957,56 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU8 ((uint8_t)(m_hop_count));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
   }
   if (m_ptype == 3)
   {
 	  i.WriteU8 ((uint8_t)(m_ptype));
 	  i.WriteU32 ((uint32_t)(m_header_id));
-	  i.WriteU8 ((uint8_t)(m_reward));
+	  i.WriteU8 ((uint32_t)(m_reward));
 	  i.WriteU32 ((uint32_t)(m_ack_message_id));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
   }
+  // 4 - INIT
+  if (m_ptype == 4)
+  {
+	  i.WriteU8 ((uint8_t)(m_ptype));
+	  i.WriteU32 ((uint32_t)(m_header_id));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
+  }
+  // 5 - RTS
+  if (m_ptype == 5)
+  {
+	  i.WriteU8 ((uint8_t)(m_ptype));
+	  i.WriteU32 ((uint32_t)(m_header_id));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
+  }
+  // 6 - CTS
+  if (m_ptype == 6)
+  {
+	  i.WriteU8 ((uint8_t)(m_ptype));
+	  i.WriteU32 ((uint32_t)(m_header_id));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
+  }
+
 }
 
 uint32_t
@@ -962,6 +1023,9 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_hop_count = i.ReadU8();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
   }
   if (m_ptype == 1)
   {
@@ -970,6 +1034,9 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_hop_count = i.ReadU8();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
   }
   if (m_ptype == 2)
   {
@@ -978,16 +1045,63 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_hop_count = i.ReadU8();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
   }
   if (m_ptype == 3)
   {
 //	  m_ptype = i.ReadU8();
 	  m_header_id = i.ReadU32();
-	  m_reward = i.ReadU8();
+	  m_reward = i.ReadU32();
 	  m_ack_message_id = i.ReadU32();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
   }
+  // 4 - INIT
+  if (m_ptype == 4)
+  {
+//	  m_ptype = i.ReadU8();
+	  m_header_id = i.ReadU32();
+//	  m_reward = i.ReadU32();
+//	  m_ack_message_id = i.ReadU32();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
+  }
+  // 5 - RTS
+  if (m_ptype == 5)
+  {
+//	  m_ptype = i.ReadU8();
+	  m_header_id = i.ReadU32();
+//	  m_reward = i.ReadU32();
+//	  m_ack_message_id = i.ReadU32();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
+  }
+  // 6 - CTS
+  if (m_ptype == 6)
+  {
+//	  m_ptype = i.ReadU8();
+	  m_header_id = i.ReadU32();
+//	  m_reward = i.ReadU32();
+//	  m_ack_message_id = i.ReadU32();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
+  }
+
+
 
   return GetSerializedSize();
 }
@@ -1053,7 +1167,7 @@ MacRoutingHeader::GetDstAddr()
 }
 
 void
-MacRoutingHeader::SetReward(uint8_t reward_value)
+MacRoutingHeader::SetReward(uint32_t reward_value)
 {
 	m_reward = reward_value;
 }
@@ -1074,4 +1188,42 @@ void
 MacRoutingHeader::IncrementHopCount()
 {
 	m_hop_count++;
+}
+
+void
+MacRoutingHeader::SetRxPower(double rx_power)
+{
+	m_rx_power = rx_power * m_multiplier;
+	std::cout << "SET RX POWER: " << m_tx_power << "\n";
+
+}
+
+void
+MacRoutingHeader::SetTxPower(double tx_power)
+{
+	m_tx_power = tx_power * m_multiplier;
+}
+
+void
+MacRoutingHeader::SetOptimalMetric(double optimal_metric)
+{
+	m_tx_power = optimal_metric * m_multiplier;
+}
+
+double
+MacRoutingHeader::GetRxPower()
+{
+	return m_rx_power / m_multiplier;
+}
+
+double
+MacRoutingHeader::GetTxPower()
+{
+	return m_tx_power / m_multiplier;
+}
+
+double
+MacRoutingHeader::GetOptimalMetric()
+{
+	return m_tx_power / m_multiplier;
 }

@@ -138,6 +138,7 @@ AquaSimSignalCache::AddNewPacket(Ptr<Packet> p){
   */
   // TODO is packet collision even really tested or dealt with in this class???
   AquaSimHeader asHeader;
+
   p->PeekHeader(asHeader);
 
   Ptr<IncomingPacket> inPkt = CreateObject<IncomingPacket>(p,

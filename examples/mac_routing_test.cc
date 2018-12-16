@@ -44,6 +44,9 @@ main (int argc, char *argv[])
   cmd.AddValue ("simStop", "Length of simulation", simStop);
   cmd.AddValue ("nodes", "Amount of regular underwater nodes", nodes);
   cmd.AddValue ("sinks", "Amount of underwater sinks", sinks);
+  cmd.AddValue ("range", "Transmission range", range);
+  cmd.AddValue ("distance", "Distance between nodes", distance);
+
   cmd.Parse(argc,argv);
 
   std::cout << "-----------Initializing simulation-----------\n";

@@ -92,6 +92,8 @@ public:
   }
   */
 
+  // Add method for setting Pt - transmission power in Watts
+  void SetPt(double p_t);
   virtual inline double GetPt() { return m_pT; }
   virtual inline double GetRXThresh() { return m_RXThresh; }
   virtual inline double GetCSThresh() { return m_CSThresh; }

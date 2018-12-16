@@ -69,6 +69,8 @@ AquaSimPhyCmn::AquaSimPhyCmn(void) :
   m_L = 0;
   m_K = 2.0;
   m_freq = 25;
+//  m_freq = 0.1;
+
   m_transRange=-1;
 
   m_modulationName = "default";
@@ -113,6 +115,7 @@ AquaSimPhyCmn::GetTypeId(void)
       MakeDoubleChecker<double>())
     .AddAttribute("Frequency", "The frequency, default is 25(khz).",
       DoubleValue(25),
+//      DoubleValue(0.1),
       MakeDoubleAccessor(&AquaSimPhyCmn::m_freq),
       MakeDoubleChecker<double>())
     .AddAttribute("L", "System loss default factor.",
@@ -321,9 +324,33 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
   pstamp.SetPt(m_pT);
   pstamp.SetPr(m_lambda);
   pstamp.SetFreq(m_freq);
-  pstamp.SetPt(m_powerLevels[m_ptLevel]);
+  // Disable this for mac_routing dev
+//  pstamp.SetPt(m_powerLevels[m_ptLevel]);
+  //
   pstamp.SetTxRange(m_transRange);
   //pstamp.SetModName(m_modulationName);
+
+  MacHeader mach;
+  AquaSimHeader ash;
+
+  p->RemoveHeader(ash);
+  p->RemoveHeader(mach);
+
+  // Set Tx power to pstamp for mac_routing dev
+  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+  {
+	  MacRoutingHeader mac_routing_h;
+
+	  p->RemoveHeader(mac_routing_h);
+
+	  pstamp.SetPt(mac_routing_h.GetTxPower());
+
+	  p->AddHeader(mac_routing_h);
+  }
+
+  p->AddHeader(mach);
+  p->AddHeader(ash);
+
   p->AddHeader(pstamp);
   return p;
 }
@@ -445,6 +472,21 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
   if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
     GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
   }
+  // Get recv power for mac_routing dev
+  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+  {
+  	MacRoutingHeader mac_routing_h;
+
+  	p->RemoveHeader(mach);
+  	p->RemoveHeader(mac_routing_h);
+
+  	mac_routing_h.SetRxPower(pstamp.GetPr());
+
+  	p->AddHeader(mac_routing_h);
+  	p->AddHeader(mach);
+
+  }
+  //
 
   p->AddHeader(asHeader);
   //p->AddHeader(pstamp); no longer needed.
@@ -547,6 +589,14 @@ AquaSimPhyCmn::SendPktUp(Ptr<Packet> p)
       if (!GetMac()->RecvProcess(p))
         NS_LOG_DEBUG(this << "Mac Recv error");
     break;
+
+  // Add case for MAC_ROUITING mac type
+  case MacHeader::UWPTYPE_MAC_ROUTING:
+    if(m_device->MacEnabled())
+      if (!GetMac()->RecvProcess(p))
+        NS_LOG_DEBUG(this << "Mac Recv error");
+    break;
+
   case MacHeader::UWPTYPE_LOC:
     GetNetDevice()->GetMacLoc()->Recv(p);
     break;
@@ -744,6 +794,13 @@ void AquaSimPhyCmn::SetTransRange(double range)
 double AquaSimPhyCmn::GetTransRange()
 {
   return m_transRange;
+}
+
+// Method for setting Pt - transmission power in Watts
+void
+AquaSimPhyCmn::SetPt(double p_t)
+{
+	m_pT = p_t;
 }
 
 int64_t

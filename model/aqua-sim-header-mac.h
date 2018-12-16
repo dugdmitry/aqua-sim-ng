@@ -47,7 +47,8 @@ public:
     UWPTYPE_LOC,
     UWPTYPE_SYNC,
     UWPTYPE_SYNC_BEACON,
-    UWPTYPE_NDN };
+    UWPTYPE_NDN,
+    UWPTYPE_MAC_ROUTING}; // Add mac_routing mac type
 
   MacHeader();
   static TypeId GetTypeId(void);
@@ -371,11 +372,19 @@ public:
   AquaSimAddress GetSrcAddr ();
   AquaSimAddress GetDstAddr ();
 
-  void SetReward (uint8_t reward_value);
+  void SetReward (uint32_t reward_value);
   int GetReward ();
 
   int GetHopCount ();
   void IncrementHopCount ();
+
+  void SetRxPower (double rx_power);
+  void SetTxPower (double tx_power);
+  void SetOptimalMetric (double optimal_metric);
+
+  double GetRxPower ();
+  double GetTxPower ();
+  double GetOptimalMetric ();
 
   //inherited methods
   virtual uint32_t GetSerializedSize(void) const;
@@ -385,7 +394,7 @@ public:
   virtual TypeId GetInstanceTypeId(void) const;
 
 private:
-  // Packet type: 0 - data_packet, 1 - RREQ, 2 - RREP, 3 - ACK
+  // Packet type: 0 - data_packet, 1 - RREQ, 2 - RREP, 3 - ACK, 4 - INIT, 5 - RTS, 6 - CTS
   uint8_t m_ptype;
   // Unique header ID
   uint32_t m_header_id;
@@ -396,9 +405,21 @@ private:
   // Destination address
   AquaSimAddress m_dst_addr;
   // Reward value
-  uint8_t m_reward = 0;
+  uint32_t m_reward = 0;
   // Message ID the ACK is replying to
   uint32_t m_ack_message_id = 0;
+
+  // Tx power for sending frame
+  uint64_t m_tx_power;
+
+  // Rx power for receiving frame
+  uint64_t m_rx_power;
+
+  // Optimal metric for power efficient path (to compare it on receiving side and generate the award accordingly)
+  uint32_t m_optimal_metric;
+
+  // Store a multipler to convert from double to uint32 and back
+  double m_multiplier = 10000000000000;
 
 };  // class MacRoutingHeader
 

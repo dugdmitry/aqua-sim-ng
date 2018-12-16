@@ -47,6 +47,7 @@ public:
   // Filter duplicate broadcast messages (RREQ, RREP)
   bool FilterDuplicateRreq (AquaSimAddress src_addr);
   bool FilterDuplicateRrep (AquaSimAddress src_addr);
+  bool FilterDuplicateInit (AquaSimAddress src_addr);
 
   // Generate and send reward packet
   double GenerateReward (AquaSimAddress dst_addr);
@@ -90,11 +91,19 @@ private:
   // in a format: {dst_addr: last_recevied_rrep_timestamp}
   std::map<AquaSimAddress, Time> m_rrep_expirations;
 
+  // Store INIT expiration timestamps, needed when the expire event is triggered by the scheduler,
+  // or when the INIT message is received,
+  // in a format: {dst_addr: last_recevied_init_timestamp}
+  std::map<AquaSimAddress, Time> m_init_expirations;
+
   // Store list of already received RREQs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_rreq_list;
 
   // Store list of already received RREPs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_rrep_list;
+
+  // Store list of already received INITs, with the last received timestamp to handle duplicate frames
+  std::map<AquaSimAddress, Time> m_init_list;
 
   // Store list of {dst_addr, sender_addr} pairs to periodically generate the reward packets back to sender
   std::map<std::map<AquaSimAddress, AquaSimAddress>, Time> m_reward_delays;
@@ -106,6 +115,9 @@ private:
 
   // RREP wait timeout, in seconds
   Time m_rrep_timeout = Seconds(100);
+
+  // INIT wait timeout, in seconds
+  Time m_init_timeout = Seconds(10);
 
   // Default negative reward value
   double m_negative_reward = -1;
