@@ -13,6 +13,8 @@
 #include "ns3/integer.h"
 #include "ns3/simulator.h"
 
+#include <math.h>
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AquaSimRoutingMac");
@@ -123,9 +125,8 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		// INIT
 		if (mac_routing_h.GetPType() == 4)
 		{
-			// Update forwarding table
-//			UpdateWeight();
-
+			// Update distances list
+			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetDstAddr());
 
 			// Filter duplicate INIT reception
 			if (!FilterDuplicateInit(mach.GetSA()))
@@ -544,10 +545,30 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p)
 	// Reset the direction if the packet is forwarded by intermediate node
 	ash.SetDirection(AquaSimHeader::DOWN);
 
-	// Check if dst_addr is in the forwarding table
-	if (m_forwarding_table.count(dst_addr) != 0)
+//	// Check if dst_addr is in the forwarding table
+//	if (m_forwarding_table.count(dst_addr) != 0)
+	// Check if dst_addr is in the distances map
+	if (m_distances.count(dst_addr) != 0)
 	{
-		// The dst_addr exists in the table
+		// Store the optimal distance metric for the current packet towards given destination
+		double optimal_metric = CalculateOptimalMetric(m_distances.find(dst_addr)->second);
+
+		// Update the forwarding table according to the known distances
+		if (m_forwarding_table.count(dst_addr) == 0)
+		{
+			// For each possible destination / distance - calculate the initial weight based on the optimal distance metric
+			for (auto const& x : m_distances)
+			{
+				// Create new entry with initial weight
+				std::map<AquaSimAddress, double> m; // {next_hop : weight}
+				m.insert(std::make_pair(x.first, reward / 2));
+		//		std::cout << "Creating new table entry with REWARD: " << reward / 2 << "\n";
+				NS_LOG_DEBUG("Creating new table entry with REWARD: " << reward / 2);
+			}
+
+			m_forwarding_table.insert(std::make_pair(dst_addr, m));
+		}
+
 		// Select next_hop neighbor and send down the packet
 		AquaSimAddress next_hop_addr = SelectNextHop(dst_addr);
 //		mach.SetDA(next_hop_addr);
@@ -605,7 +626,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p)
 //			m_send_queue.find(dst_addr)->second.push(p->Copy());
 			m_send_queue.find(dst_addr)->second.push(p);
 		}
-		// If there is no entry for the given destination address, create a queue and trigger RREQ/RREP procedure
+		// If there is no entry for the given destination address, create a queue and trigger INIT message
 		else
 		{
 			// Create new sub-queue for given dst_addr
@@ -615,12 +636,6 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p)
 			// Put packet in queue
 //			m_send_queue.find(dst_addr)->second.push(p->Copy());
 			m_send_queue.find(dst_addr)->second.push(p);
-
-//			// Generate and broadcast RREQ message
-//			Ptr<Packet> rreq = Create<Packet>();
-//			mac_routing_h.SetPType(1);	// 1 - RREQ message type
-//			mac_routing_h.SetId(0);
-//			mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
 			// Generate and send INIT message
 			Ptr<Packet> init = Create<Packet>();
@@ -667,7 +682,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p)
 //			// Put the RREQ into rreq_list to further filter duplicate ones out
 //			FilterDuplicateRreq(mach.GetSA());
 
-			// Put the INIT into rreq_list to further filter duplicate ones out
+			// Put the INIT into init_list to further filter duplicate ones out
 			FilterDuplicateInit(mach.GetSA());
 
 			// Send frame
@@ -1021,6 +1036,37 @@ AquaSimRoutingMac::FilterDuplicateInit(AquaSimAddress src_addr)
 			return false;
 		}
 	}
+}
+
+void
+AquaSimRoutingMac::UpdateDistance(double tx_power, double rx_power, AquaSimAddress dst_addr)
+{
+	if (m_distances.count(dst_addr) != 0)
+	{
+		m_distances.at(dst_addr) = CalculateDistance(tx_power, rx_power);
+	}
+	else
+	{
+		m_distances.insert(std::make_pair(dst_addr, CalculateDistance(tx_power, rx_power)));
+	}
+}
+
+double
+AquaSimRoutingMac::CalculateDistance(double tx_power, double rx_power)
+{
+	// A very rough approximation of rayleigh model, used in the propagation module:
+	// rx_power = tx_power / d^k * alpha^(d/1000), k = 2
+	// This approximation works if freq=25kHz, i.e. alpha ~ 4
+	return sqrt(tx_power / rx_power);
+}
+
+double
+AquaSimRoutingMac::CalculateOptimalMetric(double distance)
+{
+	// Optimal metric is a sub-distance of the given distance
+	// This metric should be calculated considering max tx_power, rx_power threshold, processing power
+	// Currently, use the constant number of intermediate nodes
+	return distance / (3 + 1); // 3 intermediate nodes => 4 chunks of sub-distances
 }
 
 void

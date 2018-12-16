@@ -61,6 +61,16 @@ public:
   // Calculate initial weight based on received RREQ/RREP frames
   double CalculateWeight (Ptr<Packet> frame);
 
+  // Calculate and update distance list
+  void UpdateDistance (double tx_power, double rx, AquaSimAddress dst_addr);
+
+  // Calculate the distance between the src and dst nodes, based on Tx and Rx powers
+  // For that, a very rough approximation model of Rayleigh is used, if frequency = 25 kHz!
+  double CalculateDistance (double tx_power, double rx_power);
+
+  // Calculate optimal metric based on the given distance between src and dst
+  double CalculateOptimalMetric (double distance);
+
   // to process the outgoing packet
   virtual bool TxProcess (Ptr<Packet>);
 protected:
@@ -118,6 +128,9 @@ private:
 
   // INIT wait timeout, in seconds
   Time m_init_timeout = Seconds(10);
+
+  // Store the distances to each destination
+  std::map<AquaSimAddress, double> m_distances;
 
   // Default negative reward value
   double m_negative_reward = -1;
