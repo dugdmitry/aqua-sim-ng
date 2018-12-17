@@ -891,8 +891,8 @@ MacRoutingHeader::GetSerializedSize(void) const
 	// DATA
 	if (m_ptype == 0)
 	{
-		// ptype + header_id + hop_count [in bytes]
-		return 6 + 4;
+		// ptype + header_id + hop_count + reward + ... [in bytes]
+		return 6 + 4 + 4 + 2 + 16;
 	}
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
@@ -933,6 +933,8 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU8 ((uint8_t)(m_ptype));
 	  i.WriteU32 ((uint32_t)(m_header_id));
 	  i.WriteU8 ((uint8_t)(m_hop_count));
+	  i.WriteU32 ((uint32_t)(m_reward));
+	  i.WriteU16 ((uint16_t)(m_sender_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
 	  // Add tx/rx parameters
@@ -1016,11 +1018,14 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
   m_ptype = i.ReadU8();
 //  std::cout << "DESERIALIZED:" << m_ptype << "\n";
 
+  // DATA frame format: | PTYPE | ID | HOP_COUNT | REWARD_VALUE| SENDER_ADDR | SRC_ADDR | DST_ADDR | TX_POWER | RX_POWER |
   if (m_ptype == 0)
   {
 //	  m_ptype = i.ReadU8();
 	  m_header_id = i.ReadU32();
 	  m_hop_count = i.ReadU8();
+	  m_reward = i.ReadU32();
+	  m_sender_addr = (AquaSimAddress) i.ReadU16();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
 	  // Get tx/rx parameters
@@ -1166,16 +1171,22 @@ MacRoutingHeader::GetDstAddr()
 	return m_dst_addr;
 }
 
-void
-MacRoutingHeader::SetReward(uint32_t reward_value)
+AquaSimAddress
+MacRoutingHeader::GetSenderAddr()
 {
-	m_reward = reward_value;
+	return m_sender_addr;
 }
 
-int
+void
+MacRoutingHeader::SetReward(double reward_value)
+{
+	m_reward = reward_value * m_multiplier_32;
+}
+
+double
 MacRoutingHeader::GetReward()
 {
-	return m_reward;
+	return m_reward / m_multiplier_32;
 }
 
 int
@@ -1193,36 +1204,36 @@ MacRoutingHeader::IncrementHopCount()
 void
 MacRoutingHeader::SetRxPower(double rx_power)
 {
-	m_rx_power = rx_power * m_multiplier;
+	m_rx_power = rx_power * m_multiplier_64;
 //	std::cout << "SET RX POWER: " << m_tx_power << "\n";
 }
 
 void
 MacRoutingHeader::SetTxPower(double tx_power)
 {
-	m_tx_power = tx_power * m_multiplier;
+	m_tx_power = tx_power * m_multiplier_64;
 }
 
 void
 MacRoutingHeader::SetOptimalMetric(double optimal_metric)
 {
-	m_tx_power = optimal_metric * m_multiplier;
+	m_tx_power = optimal_metric * m_multiplier_64;
 }
 
 double
 MacRoutingHeader::GetRxPower()
 {
-	return m_rx_power / m_multiplier;
+	return m_rx_power / m_multiplier_64;
 }
 
 double
 MacRoutingHeader::GetTxPower()
 {
-	return m_tx_power / m_multiplier;
+	return m_tx_power / m_multiplier_64;
 }
 
 double
 MacRoutingHeader::GetOptimalMetric()
 {
-	return m_tx_power / m_multiplier;
+	return m_tx_power / m_multiplier_64;
 }

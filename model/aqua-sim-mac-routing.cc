@@ -87,6 +87,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
   pkt->RemoveHeader(mac_routing_h);
 
 	AquaSimAddress dst = mac_routing_h.GetDstAddr();
+	AquaSimAddress sender_addr = mac_routing_h.GetSenderAddr();
 //	AquaSimAddress dst = mach.GetDA();
 
 	//get a packet from modem, remove the sync hdr from txtime first
@@ -138,6 +139,73 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		}
 
 		// DATA PACKET TYPE
+		////////////////////
+		////////////////////
+
+		// If the DATA packet comes from the network (i.e. PHY), then process it regardless of the current RTS/CTS status
+		if (mac_routing_h.GetPType() == 0)
+		{
+			// The DATA packet must be destined to the node
+			if (dst == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			{
+				// Disable reward delays => no negative rewards if the data packet has been lost
+				////
+	//			std::map<AquaSimAddress, AquaSimAddress> m; // Store dst_addr : sender_addr pair
+	//			m.insert(std::make_pair(mach.GetDA(), mac_routing_h.GetSrcAddr()));
+	//			// Send reward / ACK back
+	//			if (m_reward_delays.count(m) == 0)
+	//			{
+	//				m_reward_delays.insert(std::make_pair(m, Simulator::Now()));
+	//				// Delay and send back a reward message
+	////				SendReward(mac_routing_h.GetSrcAddr(), GenerateReward(mach.GetDA()), pkt);
+	////				Simulator::Schedule(m_reward_delay, &AquaSimRoutingMac::SendRewardHandler,
+	////						this, m, GenerateReward(mach.GetDA()), pkt->Copy());
+	//
+	//				Simulator::Schedule(m_reward_delay, &AquaSimRoutingMac::SendRewardHandler,
+	//						this, m, GenerateReward(mach.GetDA()), pkt);
+	//			}
+				////
+
+				std::cout << "DATA PACKET\n";
+
+				// If dst_addr is its own, send up
+				// If not, forward packet further
+				if (mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+				{
+					// The data packet is for this node, send it up
+					pkt->AddHeader(ash);  //leave MacHeader off since sending to upper layers
+					SendUp(pkt);
+				}
+				else
+				{
+					// Otherwise, insert the reward and forward the packet further
+
+					// Generate and insert the reward here
+
+					pkt->AddHeader(mach);
+					pkt->AddHeader(ash);
+					ForwardPacket (pkt, mac_routing_h.GetSrcAddr());
+				}
+			}
+
+			// Update the weight value by the reward, if the sender_addr is for this node
+			if (sender_addr == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			{
+				// Check the reward
+				// If the reward = 0, then the packet contains no rewards, i.e. the packet has come from the initial source node
+				// In that case, do not update the forwarding table with reward
+				double reward = mac_routing_h.GetReward();
+				if (reward != 0)
+				{
+					// Update forwarding table
+					UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), reward);
+				}
+
+			}
+
+			return true;
+		}
+
 		////////////////////
 		////////////////////
 
@@ -1071,9 +1139,10 @@ AquaSimRoutingMac::UpdateWeight(AquaSimAddress dst_addr, AquaSimAddress next_hop
 		// Create new entry with initial weight according to given reward
 		std::map<AquaSimAddress, double> m; // {next_hop : weight}
 
-		m.insert(std::make_pair(next_hop_addr, reward / 2));
-//		std::cout << "Creating new table entry with REWARD: " << reward / 2 << "\n";
-		NS_LOG_DEBUG("Creating new table entry with REWARD: " << reward / 2);
+//		m.insert(std::make_pair(next_hop_addr, reward / 2));
+		m.insert(std::make_pair(next_hop_addr, reward));
+		std::cout << "Creating new table entry with REWARD: " << reward << "\n";
+//		NS_LOG_DEBUG("Creating new table entry with REWARD: " << reward / 2);
 
 		m_forwarding_table.insert(std::make_pair(dst_addr, m));
 	}
@@ -1082,25 +1151,26 @@ AquaSimRoutingMac::UpdateWeight(AquaSimAddress dst_addr, AquaSimAddress next_hop
 		// Check if the next_hop_entry exist, if not - create one and return
 		if (m_forwarding_table.find(dst_addr)->second.count(next_hop_addr) == 0)
 		{
-			m_forwarding_table.find(dst_addr)->second.insert(std::make_pair(next_hop_addr, reward / 2));
+//			m_forwarding_table.find(dst_addr)->second.insert(std::make_pair(next_hop_addr, reward / 2));
+			m_forwarding_table.find(dst_addr)->second.insert(std::make_pair(next_hop_addr, reward));
 		}
 
 		double current_weight = m_forwarding_table.find(dst_addr)->second.find(next_hop_addr)->second;
-//		std::cout << "CURRENT WEIGHT: " << current_weight << " Node Address: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << "\n";
-		NS_LOG_DEBUG("CURRENT WEIGHT: " << current_weight << " Node Address: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+		std::cout << "CURRENT WEIGHT: " << current_weight << " Node Address: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << "\n";
+//		NS_LOG_DEBUG("CURRENT WEIGHT: " << current_weight << " Node Address: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
-//		std::cout << "REWARD: " << reward << "\n";
-		NS_LOG_DEBUG("REWARD: " << reward);
+		std::cout << "REWARD: " << reward << "\n";
+//		NS_LOG_DEBUG("REWARD: " << reward);
 
-//		std::cout << "TABLE SIZE: " << m_forwarding_table.size() << "\n";
-		NS_LOG_DEBUG("TABLE SIZE: " << m_forwarding_table.size());
+		std::cout << "TABLE SIZE: " << m_forwarding_table.size() << "\n";
+//		NS_LOG_DEBUG("TABLE SIZE: " << m_forwarding_table.size());
 
 		// If the current weight is too small (due to lack of rewards), just remove the entry from the table
 		if ((current_weight + reward) <= 0)
 //		if (current_weight < 0.01)
 		{
-//			std::cout << "Warning! Weight dropped below the threshold! Deleting table entry!\n";
-			NS_LOG_DEBUG("Warning! Weight dropped below the threshold! Deleting table entry!");
+			std::cout << "Warning! Weight dropped below the threshold! Deleting table entry!\n";
+//			NS_LOG_DEBUG("Warning! Weight dropped below the threshold! Deleting table entry!");
 
 			m_forwarding_table.find(dst_addr)->second.erase(next_hop_addr);
 			if (m_forwarding_table.find(dst_addr)->second.size() == 0)

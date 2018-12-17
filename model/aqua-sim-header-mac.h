@@ -371,9 +371,10 @@ public:
 
   AquaSimAddress GetSrcAddr ();
   AquaSimAddress GetDstAddr ();
+  AquaSimAddress GetSenderAddr ();
 
-  void SetReward (uint32_t reward_value);
-  int GetReward ();
+  void SetReward (double reward_value);
+  double GetReward ();
 
   int GetHopCount ();
   void IncrementHopCount ();
@@ -404,6 +405,8 @@ private:
   AquaSimAddress m_src_addr;
   // Destination address
   AquaSimAddress m_dst_addr;
+  // Sender address to send back the reward to
+  AquaSimAddress m_sender_addr;
   // Reward value
   uint32_t m_reward = 0;
   // Message ID the ACK is replying to
@@ -415,11 +418,14 @@ private:
   // Rx power for receiving frame
   uint64_t m_rx_power;
 
-  // Optimal metric for power efficient path (to compare it on receiving side and generate the award accordingly)
-  uint32_t m_optimal_metric;
+  // Not used when the optimal metric is constant for all possible desstinations, i.e.
+  // when calculated from max_range value
+//  // Optimal metric for power efficient path (to compare it on receiving side and generate the award accordingly)
+  uint32_t m_optimal_metric = 0;
 
-  // Store a multipler to convert from double to uint32 and back
-  double m_multiplier = 10000000000000;
+  // Store a multipler to convert from double to uint32/64 and back
+  double m_multiplier_64 = 10000000000000;
+  double m_multiplier_32 = 10000;
 
 };  // class MacRoutingHeader
 
