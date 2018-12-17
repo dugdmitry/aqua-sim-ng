@@ -1194,8 +1194,7 @@ void
 MacRoutingHeader::SetRxPower(double rx_power)
 {
 	m_rx_power = rx_power * m_multiplier;
-	std::cout << "SET RX POWER: " << m_tx_power << "\n";
-
+//	std::cout << "SET RX POWER: " << m_tx_power << "\n";
 }
 
 void

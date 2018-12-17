@@ -35,8 +35,8 @@ public:
   void CallbackProcess ();
   void DropPacket (Ptr<Packet>);
 
-  // Forward packet / frame from upper layers / network
-  bool ForwardPacket (Ptr<Packet>);
+  // Forward packet / frame from upper layers / network, keep track of the sender node
+  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr);
 
   // Send down frame using broadcast-mac backoff logic
   bool SendDownFrame (Ptr<Packet>);
@@ -48,6 +48,8 @@ public:
   bool FilterDuplicateRreq (AquaSimAddress src_addr);
   bool FilterDuplicateRrep (AquaSimAddress src_addr);
   bool FilterDuplicateInit (AquaSimAddress src_addr);
+  bool FilterDuplicateRts (AquaSimAddress src_addr);
+  bool FilterDuplicateCts (AquaSimAddress src_addr);
 
   // Generate and send reward packet
   double GenerateReward (AquaSimAddress dst_addr);
@@ -58,8 +60,8 @@ public:
   // Update path weight in forwarding table by corresponding reward value
   bool UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
 
-  // Calculate initial weight based on received RREQ/RREP frames
-  double CalculateWeight (Ptr<Packet> frame);
+  // Calculate weights based on given distances
+  double CalculateWeight (double distance);
 
   // Calculate and update distance list
   void UpdateDistance (double tx_power, double rx, AquaSimAddress dst_addr);
@@ -68,17 +70,41 @@ public:
   // For that, a very rough approximation model of Rayleigh is used, if frequency = 25 kHz!
   double CalculateDistance (double tx_power, double rx_power);
 
+  // Calculate Tx power given the distance and expected Rx_threshold
+  // The calculation is based on Rayleight model, used in the aqua-sim-propagation module:
+  // Rx = Tx / (d^k * alpha^(d/1000)), k = 2, alpha = 4, (f = 25kHz)
+  double CalculateTxPower (double distance);
+
   // Calculate optimal metric based on the given distance between src and dst
   double CalculateOptimalMetric (double distance);
 
   // to process the outgoing packet
   virtual bool TxProcess (Ptr<Packet>);
+
+  // RTS / CTS states logic
+  enum MacRoutingStatus {
+      CTS_WAIT,
+	  RTS_TO,
+	  CTS_TO,
+	  DATA_TX,
+	  DATA_RX,
+	  IDLE
+    };
+
 protected:
   void BackoffHandler(Ptr<Packet>);
   virtual void DoDispose();
   // Expiration handlers
   void RewardExpirationHandler(std::map<AquaSimAddress, AquaSimAddress> dst_to_next_hop_map);
   void RrepExpirationHandler(AquaSimAddress dst_address);
+  void InitExpirationHandler(AquaSimAddress dst_address);
+  void RtsExpirationHandler(AquaSimAddress dst_address);
+  void CtsExpirationHandler(AquaSimAddress dst_address);
+
+  // RTS / CTS state timeout handler
+  void StateTimeoutHandler (Time timeout);
+  // Set current state to IDLE
+  void SetToIdle ();
 
 private:
   int m_backoffCounter;
@@ -106,6 +132,16 @@ private:
   // in a format: {dst_addr: last_recevied_init_timestamp}
   std::map<AquaSimAddress, Time> m_init_expirations;
 
+  // Store RTS expiration timestamps, needed when the expire event is triggered by the scheduler,
+  // or when the RTS message is received,
+  // in a format: {dst_addr: last_recevied_rts_timestamp}
+  std::map<AquaSimAddress, Time> m_rts_expirations;
+
+  // Store CTS expiration timestamps, needed when the expire event is triggered by the scheduler,
+  // or when the CTS message is received,
+  // in a format: {dst_addr: last_recevied_cts_timestamp}
+  std::map<AquaSimAddress, Time> m_cts_expirations;
+
   // Store list of already received RREQs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_rreq_list;
 
@@ -114,6 +150,12 @@ private:
 
   // Store list of already received INITs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_init_list;
+
+  // Store list of already received RTSs, with the last received timestamp to handle duplicate frames
+  std::map<AquaSimAddress, Time> m_rts_list;
+
+  // Store list of already received CTSs, with the last received timestamp to handle duplicate frames
+  std::map<AquaSimAddress, Time> m_cts_list;
 
   // Store list of {dst_addr, sender_addr} pairs to periodically generate the reward packets back to sender
   std::map<std::map<AquaSimAddress, AquaSimAddress>, Time> m_reward_delays;
@@ -129,6 +171,12 @@ private:
   // INIT wait timeout, in seconds
   Time m_init_timeout = Seconds(10);
 
+  // RTS wait timeout, in seconds
+  Time m_rts_timeout = Seconds(2);
+
+  // CTS wait timeout, in seconds
+  Time m_cts_timeout = Seconds(2);
+
   // Store the distances to each destination
   std::map<AquaSimAddress, double> m_distances;
 
@@ -137,6 +185,28 @@ private:
 
   // Maximum hop-count for packets (to avoid loops)
   int m_max_hop_count = 10;
+
+  // Optimal 1-hop distance (optimal metric)
+  double m_optimal_metric = 0;
+
+  // Max transmission range
+  double m_max_range = 150; // meters
+
+  // Expected Rx_threshold, in Watts
+  double m_rx_threshold = 0.0005;
+
+  // Max tx_power
+  double m_max_tx_power = 20; // Watts
+
+  //
+  // Store packets to be sent
+  std::queue<Ptr<Packet>> m_send_buffer;
+
+  // Current RTS/CTS state
+  MacRoutingStatus m_status;
+
+  // Current state timeout
+  Time m_state_timeout;
 
 };  // class AquaSimRoutingMac
 

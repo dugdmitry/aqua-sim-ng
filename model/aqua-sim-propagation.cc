@@ -84,7 +84,7 @@ AquaSimPropagation::Rayleigh (double d, double f)
 //  double alpha=alpha_f;
   double alpha=pow(10.0,(alpha_f/10.0));
 
-  std::cout << "ALPHA: " << alpha << "\n";
+//  std::cout << "ALPHA: " << alpha << "\n";
 
   double t3=pow(alpha,d1);
 

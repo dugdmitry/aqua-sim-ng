@@ -112,9 +112,8 @@ AquaSimSimplePropagation::RayleighAtt (double dist, double freq, double pT)
   NS_LOG_DEBUG("RayleighAtt DUMP: dist(" << dist << ") freq(" << freq << ") pT("
     << pT << ") Rayleigh(" << Rayleigh(dist,freq) << ") pR(" << pT/Rayleigh(dist,freq) << ")");
 
-  std::cout << "PT VALUE:" << pT << "\n";
-  std::cout << "RAYLEIGH VALUE:" << Rayleigh(dist,freq) << "\n";
-
+//  std::cout << "PT VALUE:" << pT << "\n";
+//  std::cout << "RAYLEIGH VALUE:" << Rayleigh(dist,freq) << "\n";
 
    return pT/Rayleigh(dist,freq);
 }
