@@ -32,6 +32,8 @@ AquaSimRoutingMac::AquaSimRoutingMac()
   m_max_range = 150;
   m_max_tx_power = 20; // Watts
 
+  m_status = IDLE;
+
 //  std::cout << "FOO\n";
 //
 //  // Generate optimal metric, based on the max transmission range
@@ -109,10 +111,10 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 
 //	{
 
-//		std::cout << "\n-------------------\nPTYPE: " << mac_routing_h.GetPType() << "\n";
+		std::cout << "\n-------------------\nPTYPE: " << mac_routing_h.GetPType() << "\n";
 //		std::cout << "TS: " << Simulator::Now() << "\n";
-//		std::cout << "SRC: " << mac_routing_h.GetSrcAddr() << "\n";
-//		std::cout << "DST: " << mac_routing_h.GetDstAddr() << "\n";
+		std::cout << "SRC: " << mac_routing_h.GetSrcAddr() << "\n";
+		std::cout << "DST: " << mac_routing_h.GetDstAddr() << "\n";
 //		std::cout << "HOP COUNT: " << mac_routing_h.GetHopCount() << "\n";
 		std::cout << "TX Power: " << mac_routing_h.GetTxPower() << "\n";
 		std::cout << "RX Power: " << mac_routing_h.GetRxPower() << "\n";
@@ -145,6 +147,8 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		// If the DATA packet comes from the network (i.e. PHY), then process it regardless of the current RTS/CTS status
 		if (mac_routing_h.GetPType() == 0)
 		{
+			std::cout << "GOT DATA MESSAGE. SRC: " << mac_routing_h.GetSrcAddr() << " DST: " << mac_routing_h.GetDstAddr() << "\n";
+
 			// The DATA packet must be destined to the node
 			if (dst == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
@@ -179,18 +183,24 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 				else
 				{
 					// Otherwise, insert the reward and forward the packet further
-
-					// Generate and insert the reward here
+					// Generate reward from the given optimal metric and delta-distance to destination
+					// I.e. how much the total distance has been reduced comparing to the optimal one
+					double reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
+							CalculateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower()));
 
 					pkt->AddHeader(mach);
 					pkt->AddHeader(ash);
-					ForwardPacket (pkt, mac_routing_h.GetSrcAddr());
+					// Increment hop_count, set reward
+					ForwardPacket(pkt, mac_routing_h.GetSrcAddr(), mac_routing_h.GetHopCount() + 1, reward);
 				}
 			}
 
 			// Update the weight value by the reward, if the sender_addr is for this node
 			if (sender_addr == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
+
+				std::cout << "REWARD PACKET\n";
+
 				// Check the reward
 				// If the reward = 0, then the packet contains no rewards, i.e. the packet has come from the initial source node
 				// In that case, do not update the forwarding table with reward
@@ -214,9 +224,13 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		if (mac_routing_h.GetPType() == 4)
 		{
 			// Update distances list
-			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetDstAddr());
+			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetSrcAddr());
 
 			// Filter duplicate INIT reception
+			if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			{
+				return true;
+			}
 			if (!FilterDuplicateInit(mach.GetSA()))
 			{
 				// Filter out the frame
@@ -231,27 +245,28 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 			// Send INIT back
 			// Set mac_routing_header parameters
 			Ptr<Packet> init = Create<Packet>();
-			mac_routing_h.SetPType(4); // 4 - INIT
-			mac_routing_h.SetId(0);
-			mac_routing_h.SetHopCount(0);
-			mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-			mac_routing_h.SetDstAddr(mac_routing_h.GetSrcAddr());
+			MacRoutingHeader init_h;
+			init_h.SetPType(4); // 4 - INIT
+			init_h.SetId(0);
+			init_h.SetHopCount(0);
+			init_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+			init_h.SetDstAddr(mac_routing_h.GetSrcAddr());
 
 			// Set aqua-sim-header parameters for correct handling on Phy layer
-			ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-			ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
+			ash.SetSize(init_h.GetSerializedSize() + mach.GetSerializedSize());
+			ash.SetTxTime(Phy()->CalcTxTime(init_h.GetSerializedSize() + mach.GetSerializedSize()));
 			ash.SetErrorFlag(false);
 			ash.SetDirection(AquaSimHeader::DOWN);
 
 			// Set Tx power for the frame
-			mac_routing_h.SetTxPower(m_max_tx_power); // Broadcast INIT message using max power
+			init_h.SetTxPower(m_max_tx_power); // Broadcast INIT message using max power
 
-			init->AddHeader(mac_routing_h);
+			init->AddHeader(init_h);
 			init->AddHeader(mach);
 			init->AddHeader(ash);
 
 			// Put the INIT into init_list to further filter duplicate ones out
-			FilterDuplicateRrep(mach.GetDA());
+			FilterDuplicateInit(mach.GetSA());
 			SendDownFrame(init);  // Send down the INIT message using the max tx_power
 
 			return true;
@@ -261,7 +276,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		if (mac_routing_h.GetPType() == 5) // 5 - RTS
 		{
 			// Update distances list
-			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetDstAddr());
+			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetSrcAddr());
 
 			// Filter duplicate RTS reception
 			if (!FilterDuplicateRts(mach.GetSA()))
@@ -279,36 +294,39 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 			// If yes, then generate the CTS back, otherwise, set the status to RTS_TO
 			if (mac_routing_h.GetDstAddr() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
+				// Set state to receive data
+				m_status = DATA_RX;
+
 				// Send CTS back
 				// Set mac_routing_header parameters
+				MacRoutingHeader cts_h;
 				Ptr<Packet> cts = Create<Packet>();
-				mac_routing_h.SetPType(6); // 6 - CTS
-				mac_routing_h.SetId(0);
-				mac_routing_h.SetHopCount(0);
-				mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-				mac_routing_h.SetDstAddr(mac_routing_h.GetSrcAddr());
+				cts_h.SetPType(6); // 6 - CTS
+				cts_h.SetId(0);
+				cts_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+				cts_h.SetDstAddr(mac_routing_h.GetSrcAddr());
 
 				// Set aqua-sim-header parameters for correct handling on Phy layer
-				ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-				ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
+				ash.SetSize(cts_h.GetSerializedSize() + mach.GetSerializedSize());
+				ash.SetTxTime(Phy()->CalcTxTime(cts_h.GetSerializedSize() + mach.GetSerializedSize()));
 				ash.SetErrorFlag(false);
 				ash.SetDirection(AquaSimHeader::DOWN);
 
 				// Set Tx power for the frame
-				mac_routing_h.SetTxPower(m_max_tx_power); // Broadcast CTS message using max power
+				cts_h.SetTxPower(m_max_tx_power); // Broadcast CTS message using max power
 
-				cts->AddHeader(mac_routing_h);
+				cts->AddHeader(cts_h);
 				cts->AddHeader(mach);
 				cts->AddHeader(ash);
 
 				// Put the CTS into cts_list to further filter duplicate ones out
 				FilterDuplicateCts(mach.GetDA());
+
 				SendDownFrame(cts);  // Send down the CTS message using the max tx_power
 
-				// Set state to receive data
-				m_status = DATA_RX;
 				// State timeout scheduler
-				StateTimeoutHandler(m_rts_timeout + m_cts_timeout); // ???
+//				StateTimeoutHandler(m_rts_timeout + m_cts_timeout); // ???
+				StateTimeoutHandler(m_data_timeout); // ???
 
 			}
 			else
@@ -325,7 +343,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		if (mac_routing_h.GetPType() == 6) // 6 - CTS
 		{
 			// Update distances list
-			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetDstAddr());
+			UpdateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower(), mac_routing_h.GetSrcAddr());
 
 			// Filter duplicate CTS reception
 			if (!FilterDuplicateCts(mach.GetSA()))
@@ -343,14 +361,18 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 			// If yes, then start data transmission
 			if (mac_routing_h.GetDstAddr() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
+				// Update last received TS
+				m_rts_expirations.find(mach.GetDA())->second = Simulator::Now();
+
 				m_status = DATA_TX;
-				StateTimeoutHandler(m_rts_timeout + m_cts_timeout); // ???
+//				StateTimeoutHandler(m_rts_timeout + m_cts_timeout); // ???
+				StateTimeoutHandler(m_data_timeout); // ???
 
 				// Send all packets which are in send buffer
 				while ((!m_send_buffer.empty()) && (m_status == DATA_TX))
 				{
-//					std::cout << "Sending packet from send buffer... " << "\n";
-				NS_LOG_DEBUG("Sending packet from send buffer... ");
+					std::cout << "Sending packet from send buffer... " << "\n";
+//				NS_LOG_DEBUG("Sending packet from send buffer... ");
 
 				Ptr<Packet> p = m_send_buffer.front();
 				SendDownFrame(p);
@@ -366,7 +388,6 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 				m_status = CTS_TO;
 				// State timeout scheduler
 				StateTimeoutHandler(m_cts_timeout);
-
 			}
 			return true;
 		}
@@ -649,7 +670,7 @@ AquaSimRoutingMac::TxProcess(Ptr<Packet> pkt)
 	pkt->AddHeader(mach);
 	pkt->AddHeader(ash);
 
-	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()), 0, 0); // hop_count = 0, reward = 0
 
   return true;  //may be bug due to Sleep/default cases
 }
@@ -674,6 +695,10 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
       pkt->AddHeader(mach);
       pkt->AddHeader(ash);
 
+      std::cout << "NODE: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << " STATE: " << m_status <<
+    		  " TS: " << Simulator::Now() << "\n";
+      std::cout << "PTYPE: " << mac_routing_h.GetPType() << "\n";
+
 	  if (m_status == IDLE)
 	  {
 		  // If the packet type is not a data packet, but some MAC message (i.e. RTS, CTS or INIT), just send the message
@@ -684,44 +709,64 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 		  // If the packet is DATA, send RTS, change the state
 		  else
 		  {
-//			  m_status = RTS_TO;
-			  // Generate RTS
-			// Set mac_routing_header parameters
-			Ptr<Packet> rts = Create<Packet>();
-			mac_routing_h.SetPType(5); // 5 - RTS
-			mac_routing_h.SetId(0);
-			mac_routing_h.SetHopCount(0);
-			mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-			mac_routing_h.SetDstAddr(mach.GetDA());
+			  // Check if the DATA packet has come from the App or the Net interface, by checking mach Src address
+			  // If the DATA packet has arrived from the APP, initiate RTS / CTS handshake
+			  // If the DATA packet has arrived from the net interface, send it down, since the frame's supposed to be delivered via
+			  // multiple hops
+			  if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			  {
+				  // Generate RTS
+				// Set mac_routing_header parameters
+				  MacRoutingHeader rts_h;
+				Ptr<Packet> rts = Create<Packet>();
+				rts_h.SetPType(5); // 5 - RTS
+				rts_h.SetId(0);
+				rts_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+				rts_h.SetDstAddr(mach.GetDA());
+				// Set max tx_power
+				rts_h.SetTxPower(m_max_tx_power);
 
-			// Set aqua-sim-header parameters for correct handling on Phy layer
-			ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-			ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
-			ash.SetErrorFlag(false);
-			ash.SetDirection(AquaSimHeader::DOWN);
+				// Set aqua-sim-header parameters for correct handling on Phy layer
+				ash.SetSize(rts_h.GetSerializedSize() + mach.GetSerializedSize());
+				ash.SetTxTime(Phy()->CalcTxTime(rts_h.GetSerializedSize() + mach.GetSerializedSize()));
+				ash.SetErrorFlag(false);
+				ash.SetDirection(AquaSimHeader::DOWN);
 
-			rts->AddHeader(mac_routing_h);
-			rts->AddHeader(mach);
-			rts->AddHeader(ash);
+	//			std::cout << "SENDING RTS\n";
 
-			// Filter duplicate RTSs out
-			FilterDuplicateRts(mach.GetDA());
+				rts->AddHeader(rts_h);
+				rts->AddHeader(mach);
+				rts->AddHeader(ash);
 
-			// Schedule the RTS expiration event
-			// Set RTS timer
-			if (m_rts_expirations.count(mach.GetDA()) == 0)
-			{
-				m_rts_expirations.insert(std::make_pair(mach.GetDA(), Time::FromInteger(0, Time::S)));
-				Simulator::Schedule(m_rts_timeout, &AquaSimRoutingMac::RtsExpirationHandler, this, mach.GetDA());
-			}
+				// Filter duplicate RTSs out
+				FilterDuplicateRts(mach.GetDA());
 
-			// Put the DATA packet into the buffer
-			m_send_buffer.push(pkt);
+				// Schedule the RTS expiration event
+				// Set RTS timer
+				if (m_rts_expirations.count(mach.GetDA()) == 0)
+				{
+					m_rts_expirations.insert(std::make_pair(mach.GetDA(), Time::FromInteger(0, Time::S)));
+					Simulator::Schedule(m_rts_timeout, &AquaSimRoutingMac::RtsExpirationHandler, this, mach.GetDA());
+				}
+
+				// Put the DATA packet into the buffer
+				m_send_buffer.push(pkt->Copy());
+
+				// Send RTS
+				SendDown(rts);
+
+				m_status = CTS_WAIT;
+			  }
+			  else
+			  {
+				  SendDown(pkt);
+			  }
+
 		  }
 		  return true;
 	  }
 
-	  if ((m_status == RTS_TO) || (m_status == CTS_TO) || (m_status == CTS_WAIT) || (m_status == DATA_RX))
+	  if ((m_status == RTS_TO) || (m_status == CTS_TO) || (m_status == CTS_WAIT))
 	  {
 		  // If the node in RTS timeout state, put the packet into the buffer, if the packet is DATA
 		  // Otherwise, discard the frame
@@ -731,9 +776,9 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 			  // If the DATA packet has arrived from the APP, put it to the buffer, since in TO state
 			  // If the DATA packet has arrived from the net interface, send it down, since the frame's supposed to be delivered via
 			  // multiple hops
-			  if (mach.GetSA == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			  if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			  {
-				  m_send_buffer.push(pkt);
+				  m_send_buffer.push(pkt->Copy());
 			  }
 			  else
 			  {
@@ -743,10 +788,43 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 		  return true;
 	  }
 
+	  if (m_status == DATA_RX)
+	  {
+		  // If CTS, then send it out
+		  if (mac_routing_h.GetPType() == 6)
+		  {
+			  SendDown(pkt);
+			  return true;
+		  }
+		  // If data packet, which has arrived from the net, forward it further as well
+		  // Check if the DATA packet has come from the App or the Net interface, by checking mach Src address
+		  // If the DATA packet has arrived from the APP, put it to the buffer, since in DATA_RX state
+		  // If the DATA packet has arrived from the net interface, send it down, since the frame's supposed to be delivered via
+		  // multiple hops
+		  if (mac_routing_h.GetPType() == 0)
+		  {
+			  if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			  {
+				  m_send_buffer.push(pkt->Copy());
+			  }
+			  else
+			  {
+				  SendDown(pkt);
+			  }
+			  return true;
+		  }
+		  return true;
+	  }
+
 	  if (m_status == DATA_TX)
 	  {
-		  // Just send out the frame
-		  SendDown(pkt);
+		  // If the packet type is a data packet, but not some MAC message (i.e. RTS, CTS or INIT), just send the data
+		  if (mac_routing_h.GetPType() == 0)
+		  {
+			  std::cout << "SEND DOWN DATA\n";
+			  std::cout << "SRC: " << mac_routing_h.GetSrcAddr() << " DST: " << mac_routing_h.GetDstAddr() << "\n";
+		      SendDown(pkt);
+		  }
 		  return true;
 	  }
 
@@ -772,22 +850,26 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 //	      PowerOn();
 //	      break;
 //	  case NIDLE:
-	      ash.SetDirection(AquaSimHeader::DOWN);
-	      //ash->addr_type()=NS_AF_ILINK;
-	      //add the sync hdr
 
-//	      // Set Tx power
-//	      mac_routing_h.SetTxPower(CalculateTxPower(distance));
-//	      mac_routing_h.SetTxPower(20);
-
-
-	      pkt->AddHeader(mac_routing_h);
-	      pkt->AddHeader(mach);
-	      pkt->AddHeader(ash);
-	      //Phy()->SetPhyStatus(PHY_SEND);
-
-
-	      SendDown(pkt);
+	  ///////////////////////
+	  ///////////////////////
+//	      ash.SetDirection(AquaSimHeader::DOWN);
+//	      //ash->addr_type()=NS_AF_ILINK;
+//	      //add the sync hdr
+//
+////	      // Set Tx power
+////	      mac_routing_h.SetTxPower(CalculateTxPower(distance));
+////	      mac_routing_h.SetTxPower(20);
+//
+//
+//	      pkt->AddHeader(mac_routing_h);
+//	      pkt->AddHeader(mach);
+//	      pkt->AddHeader(ash);
+//	      //Phy()->SetPhyStatus(PHY_SEND);
+//
+//	      SendDown(pkt);
+	  ////////////////////////
+	  ////////////////////////
 
 //	      m_backoffCounter=0;
 //	      return true;
@@ -822,7 +904,7 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 
 // Forward packet / frame coming from the application or the network (DATA type)
 bool
-AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
+AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int hop_count, double reward)
 {
 	AquaSimHeader ash;
 	MacHeader mach;
@@ -865,8 +947,17 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 		}
 
 		// Select next_hop neighbor and send down the packet
-		AquaSimAddress next_hop_addr = SelectNextHop(dst_addr);
-//		mach.SetDA(next_hop_addr);
+		// If the hop_count exceeds the threshold, then send the packet directly to the destination
+		AquaSimAddress next_hop_addr;
+		if (hop_count >= m_hop_count_threshold)
+		{
+			std::cout << "HOP COUNT EXCEEDED THRESHOLD. Sending to DST.\n";
+			next_hop_addr = dst_addr;
+		}
+		else
+		{
+			next_hop_addr = SelectNextHop(dst_addr);
+		}
 
 		// Create mac_routing_header (DATA type)
 		mac_routing_h.SetPType(0);
@@ -874,35 +965,22 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 		mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 //		std::cout << "Next hop addr: " << next_hop_addr << "\n";
 		mac_routing_h.SetDstAddr(next_hop_addr);
-		mac_routing_h.IncrementHopCount(); // Move this to reception side !!!!!!
+		mac_routing_h.SetHopCount(hop_count);
 
-		p->AddHeader(mac_routing_h);
-		p->AddHeader(mach);
-		p->AddHeader(ash);
+		// Set the direct distance from this node to the destination
+		mac_routing_h.SetDirectDistance(m_distances.find(dst_addr)->second);
 
-		std::map<AquaSimAddress, AquaSimAddress> m;
-		m.insert(std::make_pair(dst_addr, next_hop_addr));
-		// Set Reward timer
-		if (m_reward_expirations.count(m) == 0)
-		{
-			// Trigger new reward expiration event for this address
-			m_reward_expirations.insert(std::make_pair(m, Simulator::Now()- Seconds(0.1)));
-//			std::cout << "New reward timeout scheduled: " << Simulator::Now() << "\n";
-			NS_LOG_DEBUG("New reward timeout scheduled: " << Simulator::Now());
+		// Set reward
+		mac_routing_h.SetReward(reward);
 
-			Simulator::Schedule(m_reward_timeout, &AquaSimRoutingMac::RewardExpirationHandler, this, m);
-		}
+		// Set sender address for the reward
+		mac_routing_h.SetSenderAddr(sender_addr);
 
-		// Send down the packet to the next hop
-//		std::cout << "Sending down data packet " << Simulator::Now() << "\n";
-		NS_LOG_DEBUG("Sending down data packet " << Simulator::Now());
-
-//		std::cout << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << " --> " << mac_routing_h.GetDstAddr() << "\n";
-		NS_LOG_DEBUG(AquaSimAddress::ConvertFrom(m_device->GetAddress()) << " --> " << mac_routing_h.GetDstAddr());
-
-//		std::cout << "Transmission Status: " << m_device->GetTransmissionStatus() << "\n";
-		NS_LOG_DEBUG("Transmission Status: " << m_device->GetTransmissionStatus());
-
+		// Set tx time and size
+		ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
+		ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
+		ash.SetErrorFlag(false);
+		ash.SetDirection(AquaSimHeader::DOWN);
 
 		// Set tx power for the given packet. The tx_power must be enough to reach the initial sender node.
 		if (AquaSimAddress::ConvertFrom(m_device->GetAddress()) == sender_addr)
@@ -925,8 +1003,37 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 			}
 		}
 
-		// RTS / CTS exchange
+		p->AddHeader(mac_routing_h);
+		p->AddHeader(mach);
+		p->AddHeader(ash);
 
+		// Disable reward timer expiration
+//		std::map<AquaSimAddress, AquaSimAddress> m;
+//		m.insert(std::make_pair(dst_addr, next_hop_addr));
+//		// Set Reward timer
+//		if (m_reward_expirations.count(m) == 0)
+//		{
+//			// Trigger new reward expiration event for this address
+//			m_reward_expirations.insert(std::make_pair(m, Simulator::Now()- Seconds(0.1)));
+////			std::cout << "New reward timeout scheduled: " << Simulator::Now() << "\n";
+//			NS_LOG_DEBUG("New reward timeout scheduled: " << Simulator::Now());
+//
+//			Simulator::Schedule(m_reward_timeout, &AquaSimRoutingMac::RewardExpirationHandler, this, m);
+//		}
+		//
+
+//		// Send down the packet to the next hop
+////		std::cout << "Sending down data packet " << Simulator::Now() << "\n";
+//		NS_LOG_DEBUG("Sending down data packet " << Simulator::Now());
+//
+////		std::cout << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << " --> " << mac_routing_h.GetDstAddr() << "\n";
+//		NS_LOG_DEBUG(AquaSimAddress::ConvertFrom(m_device->GetAddress()) << " --> " << mac_routing_h.GetDstAddr());
+//
+////		std::cout << "Transmission Status: " << m_device->GetTransmissionStatus() << "\n";
+//		NS_LOG_DEBUG("Transmission Status: " << m_device->GetTransmissionStatus());
+
+
+		// RTS / CTS exchange
 		SendDownFrame(p);
 
 		return true;
@@ -956,24 +1063,25 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 
 			// Generate and send INIT message
 			Ptr<Packet> init = Create<Packet>();
-			mac_routing_h.SetPType(4);	// 4 - INIT message type
-			mac_routing_h.SetId(0);
-			mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+			MacRoutingHeader init_h;
+			init_h.SetPType(4);	// 4 - INIT message type
+			init_h.SetId(0);
+			init_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
 			// Set frame to broadcast address
-			mac_routing_h.SetDstAddr(dst_addr);
-			mac_routing_h.SetHopCount(0);
+			init_h.SetDstAddr(dst_addr);
+			init_h.SetHopCount(0);
 
 			// Set aqua-sim-header parameters for correct handling on Phy layer
-			ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-			ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
+			ash.SetSize(init_h.GetSerializedSize() + mach.GetSerializedSize());
+			ash.SetTxTime(Phy()->CalcTxTime(init_h.GetSerializedSize() + mach.GetSerializedSize()));
 			ash.SetErrorFlag(false);
 			ash.SetDirection(AquaSimHeader::DOWN);
 
 			// Set Tx power for the frame
-			mac_routing_h.SetTxPower(m_max_tx_power); // Broadcast INIT message using max power
+			init_h.SetTxPower(m_max_tx_power); // Broadcast INIT message using max power
 
-			init->AddHeader(mac_routing_h);
+			init->AddHeader(init_h);
 			init->AddHeader(mach);
 			init->AddHeader(ash);
 
@@ -1002,8 +1110,8 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 //			// Put the RREQ into rreq_list to further filter duplicate ones out
 //			FilterDuplicateRreq(mach.GetSA());
 
-			// Put the INIT into init_list to further filter duplicate ones out
-			FilterDuplicateInit(mach.GetSA());
+//			// Put the INIT into init_list to further filter duplicate ones out
+//			FilterDuplicateInit(mach.GetSA());
 
 			// Send frame
 			SendDownFrame(init);
@@ -1017,36 +1125,37 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 	return true;
 }
 
-double
-AquaSimRoutingMac::GenerateReward(AquaSimAddress dst_addr)
-{
-	// If no entries in forwarding table, return 0
-	if (m_forwarding_table.count(dst_addr) == 0)
-	{
-		if (dst_addr == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
-		{
-			// If the dst_adress is this node itself, update the forwarding table and return reward
-			UpdateWeight(dst_addr, dst_addr, 100*2); // Needs to multiply by two since the UpdateMethods calculates the average
-			return 100; // Corresponds to the weight to itself
-		}
-
-		// Else, there this node has no path to the given destination, return 0
-		return 0;
-	}
-
-	// Calculate and return an average weight towards a given destination from the node's forwarding table
-	double weight_sum = 0;
-	int n = 0;
-
-	// Iterate through the weights to find average
-	for (auto const& x : m_forwarding_table.find(dst_addr)->second)
-	{
-		weight_sum = weight_sum + x.second;
-		n++;
-	}
-
-	return weight_sum / n;
-}
+// Maybe consider in the future an average weight towards given destination
+//double
+//AquaSimRoutingMac::GenerateReward(AquaSimAddress dst_addr)
+//{
+//	// If no entries in forwarding table, return 0
+//	if (m_forwarding_table.count(dst_addr) == 0)
+//	{
+//		if (dst_addr == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+//		{
+//			// If the dst_adress is this node itself, update the forwarding table and return reward
+//			UpdateWeight(dst_addr, dst_addr, 100*2); // Needs to multiply by two since the UpdateMethods calculates the average
+//			return 100; // Corresponds to the weight to itself
+//		}
+//
+//		// Else, there this node has no path to the given destination, return 0
+//		return 0;
+//	}
+//
+//	// Calculate and return an average weight towards a given destination from the node's forwarding table
+//	double weight_sum = 0;
+//	int n = 0;
+//
+//	// Iterate through the weights to find average
+//	for (auto const& x : m_forwarding_table.find(dst_addr)->second)
+//	{
+//		weight_sum = weight_sum + x.second;
+//		n++;
+//	}
+//
+//	return weight_sum / n;
+//}
 
 void
 AquaSimRoutingMac::SendRewardHandler (std::map<AquaSimAddress, AquaSimAddress> dst_sender_map, double reward, Ptr<Packet> p)
@@ -1194,6 +1303,13 @@ AquaSimRoutingMac::CalculateWeight(double distance)
 //	MacRoutingHeader mac_routing_h;
 //	frame->RemoveHeader(mac_routing_h);
 	// Calculate weight based on the difference between optimal_distance and D(Tx,Rx)
+	if (distance <= 0)
+	{
+		// Return minimum possible reward
+		return m_min_reward;
+	}
+
+	// TODO: Think out how to give more weight to a closer node, then to a more distant one.
 	if (m_optimal_metric <= (distance))
 	{
 		return 100 * (m_optimal_metric / distance);
@@ -1285,13 +1401,13 @@ AquaSimRoutingMac::RtsExpirationHandler(AquaSimAddress node_address)
 		NS_LOG_DEBUG("RTS wait timeout!");
 
 //		std::cout << "DST_ADDR: " << node_address << "\n";
-		NS_LOG_DEBUG("DST_ADDR: " << node_address);
+//		NS_LOG_DEBUG("DST_ADDR: " << node_address);
 
 //		std::cout << "TS: " << m_rrep_expirations.find(node_address)->second << "\n";
-		NS_LOG_DEBUG("TS: " << m_rts_expirations.find(node_address)->second);
+//		NS_LOG_DEBUG("TS: " << m_rts_expirations.find(node_address)->second);
 
 //		std::cout << "Current Time: " << Simulator::Now() << "\n";
-		NS_LOG_DEBUG("Current Time: " << Simulator::Now());
+//		NS_LOG_DEBUG("Current Time: " << Simulator::Now());
 
 		// Delete the entry
 		m_rts_expirations.erase(node_address);
@@ -1329,7 +1445,10 @@ AquaSimRoutingMac::CtsExpirationHandler(AquaSimAddress node_address)
 void
 AquaSimRoutingMac::StateTimeoutHandler(Time timeout)
 {
-	m_state_timeout = Simulator::Now() + timeout;
+	if (m_state_timeout < (Simulator::Now() + timeout))
+	{
+		m_state_timeout = Simulator::Now() + timeout;
+	}
 	// Schedule the IDLE event
 	Simulator::Schedule(timeout, &AquaSimRoutingMac::SetToIdle, this);
 }
@@ -1340,6 +1459,7 @@ AquaSimRoutingMac::SetToIdle()
 	// Change state to IDLE, since the current state timeout hasn't been changed, therefore, no other timeouts were introduced
 	if (m_state_timeout <= Simulator::Now())
 	{
+		std::cout << "SETTING TO IDLE: " << Simulator::Now() << "\n";
 		m_status = IDLE;
 	}
 }

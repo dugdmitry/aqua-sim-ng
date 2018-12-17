@@ -368,6 +368,7 @@ public:
 
   void SetSrcAddr (AquaSimAddress src_addr);
   void SetDstAddr (AquaSimAddress dst_addr);
+  void SetSenderAddr (AquaSimAddress sender_addr);
 
   AquaSimAddress GetSrcAddr ();
   AquaSimAddress GetDstAddr ();
@@ -382,10 +383,12 @@ public:
   void SetRxPower (double rx_power);
   void SetTxPower (double tx_power);
   void SetOptimalMetric (double optimal_metric);
+  void SetDirectDistance (double direct_distance);
 
   double GetRxPower ();
   double GetTxPower ();
   double GetOptimalMetric ();
+  double GetDirectDistance ();
 
   //inherited methods
   virtual uint32_t GetSerializedSize(void) const;
@@ -416,7 +419,10 @@ private:
   uint64_t m_tx_power;
 
   // Rx power for receiving frame
-  uint64_t m_rx_power;
+  uint64_t m_rx_power = 0;
+
+  // Direct distance from source to destination
+  uint32_t m_direct_distance = 0;
 
   // Not used when the optimal metric is constant for all possible desstinations, i.e.
   // when calculated from max_range value

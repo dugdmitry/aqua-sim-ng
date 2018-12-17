@@ -892,7 +892,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	if (m_ptype == 0)
 	{
 		// ptype + header_id + hop_count + reward + ... [in bytes]
-		return 6 + 4 + 4 + 2 + 16;
+		return 6 + 4 + 4 + 2 + 4 + 16;
 	}
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
@@ -910,12 +910,12 @@ MacRoutingHeader::GetSerializedSize(void) const
 		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
 	}
 	// RTS
-	if (m_ptype == 4)
+	if (m_ptype == 5)
 	{
 		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
 	}
 	// CTS
-	if (m_ptype == 4)
+	if (m_ptype == 6)
 	{
 		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
 	}
@@ -937,6 +937,7 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU16 ((uint16_t)(m_sender_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
 	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  i.WriteU32 ((uint32_t)(m_direct_distance));
 	  // Add tx/rx parameters
 	  i.WriteU64 ((uint64_t)(m_tx_power));
 	  i.WriteU64 ((uint64_t)(m_rx_power));
@@ -1018,7 +1019,7 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
   m_ptype = i.ReadU8();
 //  std::cout << "DESERIALIZED:" << m_ptype << "\n";
 
-  // DATA frame format: | PTYPE | ID | HOP_COUNT | REWARD_VALUE| SENDER_ADDR | SRC_ADDR | DST_ADDR | TX_POWER | RX_POWER |
+  // DATA frame format: | PTYPE | ID | HOP_COUNT | REWARD_VALUE | SENDER_ADDR | SRC_ADDR | DST_ADDR | DIRECT_DISTANCE | TX_POWER | RX_POWER |
   if (m_ptype == 0)
   {
 //	  m_ptype = i.ReadU8();
@@ -1028,6 +1029,7 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_sender_addr = (AquaSimAddress) i.ReadU16();
 	  m_src_addr = (AquaSimAddress) i.ReadU16();
 	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  m_direct_distance = i.ReadU32();
 	  // Get tx/rx parameters
 	  m_tx_power = i.ReadU64();
 	  m_rx_power = i.ReadU64();
@@ -1159,6 +1161,12 @@ MacRoutingHeader::SetDstAddr(AquaSimAddress dst_addr)
 	m_dst_addr = dst_addr;
 }
 
+void
+MacRoutingHeader::SetSenderAddr(AquaSimAddress sender_addr)
+{
+	m_sender_addr = sender_addr;
+}
+
 AquaSimAddress
 MacRoutingHeader::GetSrcAddr()
 {
@@ -1217,7 +1225,13 @@ MacRoutingHeader::SetTxPower(double tx_power)
 void
 MacRoutingHeader::SetOptimalMetric(double optimal_metric)
 {
-	m_tx_power = optimal_metric * m_multiplier_64;
+	m_optimal_metric = optimal_metric * m_multiplier_32;
+}
+
+void
+MacRoutingHeader::SetDirectDistance(double direct_distance)
+{
+	m_direct_distance = m_direct_distance * m_multiplier_32;
 }
 
 double
@@ -1235,5 +1249,11 @@ MacRoutingHeader::GetTxPower()
 double
 MacRoutingHeader::GetOptimalMetric()
 {
-	return m_tx_power / m_multiplier_64;
+	return m_optimal_metric / m_multiplier_32;
+}
+
+double
+MacRoutingHeader::GetDirectDistance()
+{
+	return m_direct_distance / m_multiplier_32;
 }

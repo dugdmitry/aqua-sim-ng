@@ -36,7 +36,7 @@ public:
   void DropPacket (Ptr<Packet>);
 
   // Forward packet / frame from upper layers / network, keep track of the sender node
-  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr);
+  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr, int hop_count, double reward);
 
   // Send down frame using broadcast-mac backoff logic
   bool SendDownFrame (Ptr<Packet>);
@@ -206,7 +206,19 @@ private:
   MacRoutingStatus m_status;
 
   // Current state timeout
-  Time m_state_timeout;
+  Time m_state_timeout = Seconds(0);
+
+  // Hop count threshold - send the DATA packet directly to the destination, if the hop count value exceeds the threshold
+  int m_hop_count_threshold = 3;
+
+  // Minimum possible reward
+  double m_min_reward = 0.001;
+
+  // Data transmission time interval
+  // Time duration of the DATA_TX / RX states before transition to IDLE
+  // I.e., how much data should be transmitted wihtin a single RTS/CTS handshake
+  Time m_data_timeout = Seconds(10);
+
 
 };  // class AquaSimRoutingMac
 
