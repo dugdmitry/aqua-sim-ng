@@ -46,6 +46,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("sinks", "Amount of underwater sinks", sinks);
   cmd.AddValue ("range", "Transmission range", range);
   cmd.AddValue ("distance", "Distance between nodes", distance);
+  cmd.AddValue ("data_rate", "On/Off app data rate, bps", m_dataRate);
 
   cmd.Parse(argc,argv);
 

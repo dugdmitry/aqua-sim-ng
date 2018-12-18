@@ -919,6 +919,11 @@ MacRoutingHeader::GetSerializedSize(void) const
 	{
 		return 1 + 4 + 4 + 16;	// Add tx/rx parameters
 	}
+	// Direct Reward Message
+	if (m_ptype == 7)
+	{
+		return 29;
+	}
 
 	// This should not happen
 	return 0;
@@ -1009,6 +1014,19 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU64 ((uint64_t)(m_tx_power));
 	  i.WriteU64 ((uint64_t)(m_rx_power));
   }
+  // 7 - Direct Reward Message
+  if (m_ptype == 7)
+  {
+	  i.WriteU8 ((uint8_t)(m_ptype));
+	  i.WriteU32 ((uint32_t)(m_header_id));
+	  i.WriteU16 ((uint16_t)(m_src_addr.GetAsInt()));
+	  i.WriteU16 ((uint16_t)(m_dst_addr.GetAsInt()));
+	  i.WriteU32 ((uint32_t)(m_reward));
+	  // Add tx/rx parameters
+	  i.WriteU64 ((uint64_t)(m_tx_power));
+	  i.WriteU64 ((uint64_t)(m_rx_power));
+  }
+
 
 }
 
@@ -1107,8 +1125,20 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  m_tx_power = i.ReadU64();
 	  m_rx_power = i.ReadU64();
   }
-
-
+  // 7 - Direct Reward Message
+  if (m_ptype == 7)
+  {
+//	  m_ptype = i.ReadU8();
+	  m_header_id = i.ReadU32();
+//	  m_reward = i.ReadU32();
+//	  m_ack_message_id = i.ReadU32();
+	  m_src_addr = (AquaSimAddress) i.ReadU16();
+	  m_dst_addr = (AquaSimAddress) i.ReadU16();
+	  m_reward = i.ReadU32();
+	  // Get tx/rx parameters
+	  m_tx_power = i.ReadU64();
+	  m_rx_power = i.ReadU64();
+  }
 
   return GetSerializedSize();
 }
@@ -1231,7 +1261,7 @@ MacRoutingHeader::SetOptimalMetric(double optimal_metric)
 void
 MacRoutingHeader::SetDirectDistance(double direct_distance)
 {
-	m_direct_distance = m_direct_distance * m_multiplier_32;
+	m_direct_distance = direct_distance * m_multiplier_32;
 }
 
 double

@@ -34,9 +34,6 @@ main (int argc, char *argv[])
   double simStop = 100; //seconds
   int intermediate_nodes = 1;
 
-  // Total number of nodes, including source and destination
-  int nodes = intermediate_nodes + 2;
-
   uint32_t m_dataRate = 80000; // bps
   uint32_t m_packetSize = 50; // bytes
   double range = 150;	// meters
@@ -47,7 +44,15 @@ main (int argc, char *argv[])
   //to change on the fly
   CommandLine cmd;
   cmd.AddValue ("simStop", "Length of simulation", simStop);
+  cmd.AddValue ("range", "Transmission range", range);
+  cmd.AddValue ("distance", "Distance between nodes", distance);
+  cmd.AddValue ("nodes", "Number of intermediate nodes", intermediate_nodes);
+
   cmd.Parse(argc,argv);
+
+  // Total number of nodes, including source and destination
+  int nodes = intermediate_nodes + 2;
+
 
   std::cout << "-----------Initializing simulation-----------\n";
 
@@ -64,7 +69,8 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 //  asHelper.SetMac("ns3::AquaSimBroadcastMac");
-  asHelper.SetMac("ns3::AquaSimRoutingMac");
+
+  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4));
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 

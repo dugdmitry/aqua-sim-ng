@@ -34,10 +34,8 @@ AquaSimRoutingMac::AquaSimRoutingMac()
 
   m_status = IDLE;
 
-//  std::cout << "FOO\n";
-//
 //  // Generate optimal metric, based on the max transmission range
-//  m_optimal_metric = CalculateOptimalMetric(Phy()->GetTransRange());
+//  m_optimal_metric = CalculateOptimalMetric(m_max_range);
 }
 
 TypeId
@@ -54,7 +52,10 @@ AquaSimRoutingMac::GetTypeId()
 		DoubleValue(20),
 		MakeDoubleAccessor (&AquaSimRoutingMac::m_max_tx_power),
 		MakeDoubleChecker<double> ())
-
+	  .AddAttribute("optimal_metric", "Optimal Distance metric, m",
+		DoubleValue(50),
+		MakeDoubleAccessor (&AquaSimRoutingMac::m_optimal_metric),
+		MakeDoubleChecker<double> ())
      ;
   return tid;
 }
@@ -112,6 +113,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 //	{
 
 		std::cout << "\n-------------------\nPTYPE: " << mac_routing_h.GetPType() << "\n";
+		std::cout << "NODE: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()) << "\n";
 //		std::cout << "TS: " << Simulator::Now() << "\n";
 		std::cout << "SRC: " << mac_routing_h.GetSrcAddr() << "\n";
 		std::cout << "DST: " << mac_routing_h.GetDstAddr() << "\n";
@@ -147,8 +149,6 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		// If the DATA packet comes from the network (i.e. PHY), then process it regardless of the current RTS/CTS status
 		if (mac_routing_h.GetPType() == 0)
 		{
-			std::cout << "GOT DATA MESSAGE. SRC: " << mac_routing_h.GetSrcAddr() << " DST: " << mac_routing_h.GetDstAddr() << "\n";
-
 			// The DATA packet must be destined to the node
 			if (dst == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
@@ -170,29 +170,72 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 	//			}
 				////
 
-				std::cout << "DATA PACKET\n";
+				std::cout << "GOT DATA MESSAGE. SRC: " << mac_routing_h.GetSrcAddr() << " DST: " << mac_routing_h.GetDstAddr() << "\n";
 
 				// If dst_addr is its own, send up
 				// If not, forward packet further
+				double reward = 0;
 				if (mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 				{
 					// The data packet is for this node, send it up
 					pkt->AddHeader(ash);  //leave MacHeader off since sending to upper layers
 					SendUp(pkt);
+
+					// Generate a single direct reward message back to the sender
+					// Set mac_routing_header parameters
+					Ptr<Packet> reward_msg = Create<Packet>();
+					MacRoutingHeader reward_h;
+					reward_h.SetPType(7); // 7 - DIRECT REWARD MESSAGE
+					reward_h.SetId(0);
+					reward_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
+					reward_h.SetDstAddr(mac_routing_h.GetSrcAddr());
+
+					// Set aqua-sim-header parameters for correct handling on Phy layer
+					ash.SetSize(reward_h.GetSerializedSize() + mach.GetSerializedSize());
+					ash.SetTxTime(Phy()->CalcTxTime(reward_h.GetSerializedSize() + mach.GetSerializedSize()));
+					ash.SetErrorFlag(false);
+					ash.SetDirection(AquaSimHeader::DOWN);
+
+					// Set Tx power for the frame
+					reward_h.SetTxPower(CalculateTxPower(CalculateDistance(mac_routing_h.GetTxPower(),
+							mac_routing_h.GetRxPower()))); // Send direct reward message considering the distance
+
+					// Set reward value
+					reward = CalculateWeight(mac_routing_h.GetDirectDistance() - 0);
+					std::cout << "DIRECT DISTANCE: " << mac_routing_h.GetDirectDistance() << "\n";
+					// Since the node is the destination itself, the residual distance is zero
+					std::cout << "RESIDUAL DISTANCE: " << 0 << "\n";
+
+					reward_h.SetReward(reward);
+
+					reward_msg->AddHeader(reward_h);
+					reward_msg->AddHeader(mach);
+					reward_msg->AddHeader(ash);
+
+					// Put the INIT into init_list to further filter duplicate ones out
+					FilterDuplicateInit(mach.GetSA());
+					SendDownFrame(reward_msg);  // Send down the INIT message using the max tx_power
+
 				}
 				else
 				{
 					// Otherwise, insert the reward and forward the packet further
 					// Generate reward from the given optimal metric and delta-distance to destination
 					// I.e. how much the total distance has been reduced comparing to the optimal one
-					double reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
-							CalculateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower()));
+//					reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
+//							CalculateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower()));
+					reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
+							m_distances.find(mach.GetDA())->second);
+
+					std::cout << "DIRECT DISTANCE: " << mac_routing_h.GetDirectDistance() << "\n";
+					std::cout << "RESIDUAL DISTANCE: " << m_distances.find(mach.GetDA())->second << "\n";
 
 					pkt->AddHeader(mach);
 					pkt->AddHeader(ash);
 					// Increment hop_count, set reward
 					ForwardPacket(pkt, mac_routing_h.GetSrcAddr(), mac_routing_h.GetHopCount() + 1, reward);
 				}
+				return true;
 			}
 
 			// Update the weight value by the reward, if the sender_addr is for this node
@@ -392,6 +435,17 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 			return true;
 		}
 
+		// Direct reward
+		if (mac_routing_h.GetPType() == 7) // 7 - DIRECT REWARD
+		{
+			// If this reward for this node, update weight
+			// Otherwise, discard
+			if (mac_routing_h.GetDstAddr() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+			{
+				UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), mac_routing_h.GetReward());
+			}
+			return true;
+		}
 
 		else
 		{
@@ -790,8 +844,8 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 
 	  if (m_status == DATA_RX)
 	  {
-		  // If CTS, then send it out
-		  if (mac_routing_h.GetPType() == 6)
+		  // If CTS or direct reward message, then send it out
+		  if ((mac_routing_h.GetPType() == 6) || (mac_routing_h.GetPType() == 7))
 		  {
 			  SendDown(pkt);
 			  return true;
@@ -969,6 +1023,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 
 		// Set the direct distance from this node to the destination
 		mac_routing_h.SetDirectDistance(m_distances.find(dst_addr)->second);
+//		std::cout << "DIRECT DISTANCE FROM LIST: " << m_distances.find(dst_addr)->second << "\n";
 
 		// Set reward
 		mac_routing_h.SetReward(reward);
@@ -1310,7 +1365,7 @@ AquaSimRoutingMac::CalculateWeight(double distance)
 	}
 
 	// TODO: Think out how to give more weight to a closer node, then to a more distant one.
-	if (m_optimal_metric <= (distance))
+	if (m_optimal_metric <= abs(distance))
 	{
 		return 100 * (m_optimal_metric / distance);
 	}

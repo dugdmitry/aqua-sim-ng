@@ -398,7 +398,7 @@ public:
   virtual TypeId GetInstanceTypeId(void) const;
 
 private:
-  // Packet type: 0 - data_packet, 1 - RREQ, 2 - RREP, 3 - ACK, 4 - INIT, 5 - RTS, 6 - CTS
+  // Packet type: 0 - data_packet, 1 - RREQ, 2 - RREP, 3 - ACK, 4 - INIT, 5 - RTS, 6 - CTS, 7 - DIRECT_REWARD
   uint8_t m_ptype;
   // Unique header ID
   uint32_t m_header_id;
