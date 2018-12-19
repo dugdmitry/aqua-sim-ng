@@ -45,6 +45,8 @@ main (int argc, char *argv[])
   uint32_t m_dataRate = 10000;
   uint32_t m_packetSize = 40;
   double range = 100;
+//  double range = 300;
+
   //int m_maxBurst =10;
 
   LogComponentEnable ("VBF", LOG_LEVEL_INFO);
@@ -77,6 +79,7 @@ main (int argc, char *argv[])
   //AquaSimEnergyHelper energy;	//******this could instead be handled by node helper. ****/
   asHelper.SetChannel(channel.Create());
   asHelper.SetMac("ns3::AquaSimBroadcastMac");
+//  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4));
   asHelper.SetRouting("ns3::AquaSimVBF", "Width", DoubleValue(100), "TargetPos", Vector3DValue(Vector(190,190,0)));
 
   /*

@@ -441,29 +441,29 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
   }
 
   // Disable this for MAC-ROUTING tests
-//  /**
-//  * any packet error set here result from that a packet
-//  * cannot be detected by the modem, so modem's status doesn't receive
-//  */
-//  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
-//				      || GetNetDevice()->GetTransmissionStatus() == SEND
-//              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
-//				      || pstamp.GetPr() < m_RXThresh)
-//  {
-//
-//    /**
-//    * p still can pass since its signal may affect other packets
-//    * when this node wake up or start to receive other packets
-//    */
-//    NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
-//    asHeader.SetErrorFlag(true);
-//  }
-//  else {
+  /**
+  * any packet error set here result from that a packet
+  * cannot be detected by the modem, so modem's status doesn't receive
+  */
+  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
+				      || GetNetDevice()->GetTransmissionStatus() == SEND
+              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+				      || pstamp.GetPr() < m_RXThresh)
+  {
+
+    /**
+    * p still can pass since its signal may affect other packets
+    * when this node wake up or start to receive other packets
+    */
+    NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
+    asHeader.SetErrorFlag(true);
+  }
+  else {
       GetNetDevice()->SetTransmissionStatus(RECV);
       //SetPhyStatus(PHY_RECV);
       //finish recv packet
       Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
-//  }
+  }
 
   UpdateRxEnergy(txTime, (bool)asHeader.GetErrorFlag());
 

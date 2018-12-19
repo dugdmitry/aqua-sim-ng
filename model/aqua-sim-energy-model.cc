@@ -177,6 +177,7 @@ AquaSimEnergyModel::SetInitialEnergy(double initialEnergy)
 double
 AquaSimEnergyModel::GetRxPower()
 {
+//	std::cout << "RX_POWER: " << m_rxP << "\n";
   return m_rxP;
 }
 double
@@ -238,6 +239,7 @@ AquaSimEnergyModel::DecrTxEnergy(double t)
   NS_LOG_FUNCTION(this);
 
   double dEng = t * m_txP;
+//  std::cout << "TX_POWER: " << m_txP << "\n";
   if (m_energy <= dEng) {
 	  m_energy = 0.0;
 	  HandleEnergyDepletion();

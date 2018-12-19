@@ -258,6 +258,16 @@ AquaSimChannel::PrintCounters()
   }
   std::cout << " (NetworkTotal) " << totalRecvPkts << "\n";
 
+  // Gather totatl energy consumption among all the nodes
+  double totalEnergyConsumption = 0;
+  for (std::vector<Ptr<AquaSimNetDevice> >::iterator it = m_deviceList.begin(); it != m_deviceList.end(); ++it)
+    {
+	  totalEnergyConsumption += (*it)->GetPhy()->EM()->GetTotalEnergyConsumption();
+//	  std::cout << "ENERGY CONSUMPTION: " << (*it)->GetPhy()->EM()->GetTotalEnergyConsumption() << "\n";
+      //std::cout << " (" << (*it)->GetAddress() << ") " << (*it)->GetPhy()->PktRecvCount() << "\n";
+    }
+  std::cout << " (TotalEnergyConsumption) " << totalEnergyConsumption << "\n";
+
   //****gather number of forwards for each pkt if possible.
   //possible look at phy-cmn layer namely AquaSimPhyCmn::PktTransmit()
 }

@@ -87,9 +87,12 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 
-//  asHelper.SetMac("ns3::AquaSimBroadcastMac");
-//  asHelper.SetMac("ns3::AquaSimSFama");
-  asHelper.SetMac("ns3::AquaSimRoutingMac");
+  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4));
+
+//    asHelper.SetMac("ns3::AquaSimSFama");
+//    asHelper.SetMac("ns3::AquaSimBroadcastMac");
+
+
 
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
