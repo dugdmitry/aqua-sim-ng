@@ -344,6 +344,9 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 	  p->RemoveHeader(mac_routing_h);
 
 	  pstamp.SetPt(mac_routing_h.GetTxPower());
+//	  // Experimental !!!
+//	  EM()->SetTxPower(mac_routing_h.GetTxPower());
+//	  ///
 
 	  p->AddHeader(mac_routing_h);
   }

@@ -223,6 +223,11 @@ AquaSimEnergyModel::DecrRcvEnergy(double t)
   NS_LOG_FUNCTION(this);
 
   double dEng = t * m_rxP;
+  // MAC-ROUTING DEV
+  // Add processing power consumption when the packet is received
+  dEng += t * 0.001; // 0.001 W of processing power. TODO: move it to the variable.
+  //
+
   if (m_energy <= dEng) {
 	  m_energy = 0.0;
 	  HandleEnergyDepletion();

@@ -1,7 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Author: Dmitrii Dugaev <ddugaev@gradcenter.cuny.edu>
- * based on aqua-sim-mac-broadcast model
  */
 
 #include "aqua-sim-mac-routing.h"
@@ -22,14 +21,14 @@ NS_OBJECT_ENSURE_REGISTERED(AquaSimRoutingMac);
 
 
 /* ======================================================================
-Adaptive forwarding (routing) MAC for  underwater sensor networks (based on broadcast-mac)
+Adaptive forwarding (routing) MAC for underwater sensor networks
 ====================================================================== */
 
 AquaSimRoutingMac::AquaSimRoutingMac()
 {
 //  m_rand = CreateObject<UniformRandomVariable> ();
   m_max_range = 150;
-  m_max_tx_power = 20; // Watts
+  m_max_tx_power = 10; // Watts
 
   m_status = IDLE;
 }
@@ -45,7 +44,7 @@ AquaSimRoutingMac::GetTypeId()
         MakeDoubleAccessor (&AquaSimRoutingMac::m_max_range),
         MakeDoubleChecker<double> ())
 	  .AddAttribute("max_tx_power", "Maximum transmission power",
-		DoubleValue(20),
+		DoubleValue(10),
 		MakeDoubleAccessor (&AquaSimRoutingMac::m_max_tx_power),
 		MakeDoubleChecker<double> ())
 	  .AddAttribute("optimal_metric", "Optimal Distance metric, m",

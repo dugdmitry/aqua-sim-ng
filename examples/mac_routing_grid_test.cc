@@ -91,6 +91,7 @@ main (int argc, char *argv[])
 
 //    asHelper.SetMac("ns3::AquaSimSFama");
 //    asHelper.SetMac("ns3::AquaSimBroadcastMac");
+//  asHelper.SetMac("ns3::AquaSimAloha");
 
 
 
