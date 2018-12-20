@@ -11,10 +11,6 @@
 
 namespace ns3 {
 
-#define BC_BACKOFF  0.1//0.5 //default is 0.1 the maximum time period for backoff
-#define BC_MAC_ROUTING_MAXIMUMCOUNTER 4//15 //default is 4 the maximum number of backoff
-#define BC_CALLBACK_DELAY 0.0001 // the interval between two consecutive sendings
-
 /**
  * \ingroup aqua-sim-ng
  *
@@ -45,17 +41,12 @@ public:
   AquaSimAddress SelectNextHop (AquaSimAddress dst_addr);
 
   // Filter duplicate broadcast messages (RREQ, RREP)
-  bool FilterDuplicateRreq (AquaSimAddress src_addr);
-  bool FilterDuplicateRrep (AquaSimAddress src_addr);
   bool FilterDuplicateInit (AquaSimAddress src_addr);
   bool FilterDuplicateRts (AquaSimAddress src_addr);
   bool FilterDuplicateCts (AquaSimAddress src_addr);
 
-  // Generate and send reward packet
+  // Generate reward packet
   double GenerateReward (AquaSimAddress dst_addr);
-  void SendReward (AquaSimAddress dst_addr, double reward, Ptr<Packet> p);
-  // Schedule reward send events
-  void SendRewardHandler (std::map<AquaSimAddress, AquaSimAddress> dst_sender_map, double reward, Ptr<Packet> p);
 
   // Update path weight in forwarding table by corresponding reward value
   bool UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
@@ -92,11 +83,9 @@ public:
     };
 
 protected:
-  void BackoffHandler(Ptr<Packet>);
   virtual void DoDispose();
   // Expiration handlers
   void RewardExpirationHandler(std::map<AquaSimAddress, AquaSimAddress> dst_to_next_hop_map);
-  void RrepExpirationHandler(AquaSimAddress dst_address);
   void InitExpirationHandler(AquaSimAddress dst_address);
   void RtsExpirationHandler(AquaSimAddress dst_address);
   void CtsExpirationHandler(AquaSimAddress dst_address);
@@ -107,7 +96,6 @@ protected:
   void SetToIdle ();
 
 private:
-  int m_backoffCounter;
   Ptr<UniformRandomVariable> m_rand;
 
   // Forwarding table to select next-hop nodes, in a format: {dst_addr : [next_hop_addr: weight]}
@@ -121,11 +109,6 @@ private:
   // or when the reward message is received,
   // in a format: {{dst_addr : next_hop_addr} : last_recevied_reward_timestamp}
   std::map<std::map<AquaSimAddress, AquaSimAddress>, Time> m_reward_expirations;
-
-  // Store RREP expiration timestamps, needed when the expire event is triggered by the scheduler,
-  // or when the RREP message is received,
-  // in a format: {dst_addr: last_recevied_rrep_timestamp}
-  std::map<AquaSimAddress, Time> m_rrep_expirations;
 
   // Store INIT expiration timestamps, needed when the expire event is triggered by the scheduler,
   // or when the INIT message is received,
@@ -141,12 +124,6 @@ private:
   // or when the CTS message is received,
   // in a format: {dst_addr: last_recevied_cts_timestamp}
   std::map<AquaSimAddress, Time> m_cts_expirations;
-
-  // Store list of already received RREQs, with the last received timestamp to handle duplicate frames
-  std::map<AquaSimAddress, Time> m_rreq_list;
-
-  // Store list of already received RREPs, with the last received timestamp to handle duplicate frames
-  std::map<AquaSimAddress, Time> m_rrep_list;
 
   // Store list of already received INITs, with the last received timestamp to handle duplicate frames
   std::map<AquaSimAddress, Time> m_init_list;
@@ -164,9 +141,6 @@ private:
   Time m_reward_delay = Seconds(1);
   // Reward wait timeout, in seconds
   Time m_reward_timeout = Seconds(30) + m_reward_delay;
-
-  // RREP wait timeout, in seconds
-  Time m_rrep_timeout = Seconds(100);
 
   // INIT wait timeout, in seconds
   Time m_init_timeout = Seconds(10);
@@ -218,7 +192,6 @@ private:
   // Time duration of the DATA_TX / RX states before transition to IDLE
   // I.e., how much data should be transmitted wihtin a single RTS/CTS handshake
   Time m_data_timeout = Seconds(10);
-
 
 };  // class AquaSimRoutingMac
 

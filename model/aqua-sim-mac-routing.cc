@@ -27,15 +27,11 @@ Adaptive forwarding (routing) MAC for  underwater sensor networks (based on broa
 
 AquaSimRoutingMac::AquaSimRoutingMac()
 {
-  m_backoffCounter=0;
-  m_rand = CreateObject<UniformRandomVariable> ();
+//  m_rand = CreateObject<UniformRandomVariable> ();
   m_max_range = 150;
   m_max_tx_power = 20; // Watts
 
   m_status = IDLE;
-
-//  // Generate optimal metric, based on the max transmission range
-//  m_optimal_metric = CalculateOptimalMetric(m_max_range);
 }
 
 TypeId
@@ -153,7 +149,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 			if (dst == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
 				// Disable reward delays => no negative rewards if the data packet has been lost
-				////
+				//// TODO: Maybe enable negative rewards in the future
 	//			std::map<AquaSimAddress, AquaSimAddress> m; // Store dst_addr : sender_addr pair
 	//			m.insert(std::make_pair(mach.GetDA(), mac_routing_h.GetSrcAddr()));
 	//			// Send reward / ACK back
@@ -222,8 +218,6 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 					// Otherwise, insert the reward and forward the packet further
 					// Generate reward from the given optimal metric and delta-distance to destination
 					// I.e. how much the total distance has been reduced comparing to the optimal one
-//					reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
-//							CalculateDistance(mac_routing_h.GetTxPower(), mac_routing_h.GetRxPower()));
 					reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
 							m_distances.find(mach.GetDA())->second);
 
@@ -418,6 +412,7 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 //				NS_LOG_DEBUG("Sending packet from send buffer... ");
 
 				Ptr<Packet> p = m_send_buffer.front();
+
 				SendDownFrame(p);
 				m_send_buffer.pop();
 
@@ -451,236 +446,6 @@ AquaSimRoutingMac::RecvProcess (Ptr<Packet> pkt)
 		{
 			std::cout << "Unknown packet type is received: " << mac_routing_h.GetPType() << "\n";
 		}
-
-
-//		// Check the frame type
-//		// DATA
-//		if (mac_routing_h.GetPType() == 0)
-//		{
-////			std::cout << "DATA PACKET\n";
-//
-//			std::map<AquaSimAddress, AquaSimAddress> m; // Store dst_addr : sender_addr pair
-//			m.insert(std::make_pair(mach.GetDA(), mac_routing_h.GetSrcAddr()));
-//			// Send reward / ACK back
-//			if (m_reward_delays.count(m) == 0)
-//			{
-//				m_reward_delays.insert(std::make_pair(m, Simulator::Now()));
-//				// Delay and send back a reward message
-////				SendReward(mac_routing_h.GetSrcAddr(), GenerateReward(mach.GetDA()), pkt);
-////				Simulator::Schedule(m_reward_delay, &AquaSimRoutingMac::SendRewardHandler,
-////						this, m, GenerateReward(mach.GetDA()), pkt->Copy());
-//
-//				Simulator::Schedule(m_reward_delay, &AquaSimRoutingMac::SendRewardHandler,
-//						this, m, GenerateReward(mach.GetDA()), pkt);
-//
-//			}
-//
-//			// If dst_addr is its own, send up
-//			// If not, forward packet further
-//			if (mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
-//			{
-//				// The data packet is for this node, send it up
-//			    pkt->AddHeader(ash);  //leave MacHeader off since sending to upper layers
-//				SendUp(pkt);
-//				return true;
-//			}
-//
-//			// Otherwise, forward the packet further
-//			pkt->AddHeader(mach);
-//			pkt->AddHeader(ash);
-//			ForwardPacket (pkt);
-////			pkt=0;
-//			return true;
-//		}
-//		// RREQ
-//		if (mac_routing_h.GetPType() == 1)
-//		{
-//			// Filter duplicate RREQ reception
-////			std::cout << "RREQ SRC ADDR: " << mach.GetSA() << " TS: " << Simulator::Now() <<"\n";
-//			if (!FilterDuplicateRreq(mach.GetSA()))
-//			{
-//				// Filter out the frame
-////				std::cout << "RREQ PACKET FILTERED\n";
-//				NS_LOG_DEBUG("RREQ PACKET FILTERED");
-//				pkt = 0;
-//				return true;
-//			}
-//
-////			std::cout << "Recevied RREQ src, dst: " << mac_routing_h.GetSrcAddr()
-////					<< ", " << mac_routing_h.GetDstAddr() << " Hop Count: " << mac_routing_h.GetHopCount() << "\n";
-//
-//			// Update forwarding table
-//			pkt->AddHeader(mac_routing_h);
-//			UpdateWeight(mach.GetSA(), mac_routing_h.GetSrcAddr(), CalculateWeight(pkt));
-//
-//			// Check whether this RREQ is for this node or not
-//			if (mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
-//			{
-//				// If yes, send out RREP back
-//				// Set mac_routing_header parameters
-//				Ptr<Packet> rrep = Create<Packet>();
-//				mac_routing_h.SetPType(2); // 2 - RREP
-//				mac_routing_h.SetId(0);
-//				mac_routing_h.SetHopCount(0);
-//				mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-//				mac_routing_h.SetDstAddr(AquaSimAddress::GetBroadcast());
-//
-//				// Set aqua-sim-header parameters for correct handling on Phy layer
-//				ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-//				ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
-//				ash.SetErrorFlag(false);
-//				ash.SetDirection(AquaSimHeader::DOWN);
-//
-//				rrep->AddHeader(mac_routing_h);
-//				rrep->AddHeader(mach);
-//				rrep->AddHeader(ash);
-//
-//				// Put the RREP into rreq_list to further filter duplicate ones out
-//				FilterDuplicateRrep(mach.GetDA());
-//				SendDownFrame(rrep);
-//
-//				return true;
-//			}
-//			else
-//			{
-//				// Otherwise, increment hop_count, broadcast RREQ further
-//				mac_routing_h.IncrementHopCount();
-//				mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-//				mac_routing_h.SetDstAddr(AquaSimAddress::GetBroadcast());
-//				ash.SetDirection(AquaSimHeader::DOWN);
-//
-//				pkt->AddHeader(mac_routing_h);
-//				pkt->AddHeader(mach);
-//				pkt->AddHeader(ash);
-//
-//				SendDownFrame(pkt);
-////				pkt=0;
-//			}
-//
-//			return true;
-//		}
-//		// RREP
-//		if (mac_routing_h.GetPType() == 2)
-//		{
-//			// Filter duplicate RREP reception
-//			if (!FilterDuplicateRrep(mach.GetDA()))
-//			{
-//				// Filter out the frame
-////				std::cout << "RREP PACKET FILTERED\n";
-//				NS_LOG_DEBUG("RREP PACKET FILTERED");
-//				pkt = 0;
-//				return true;
-//			}
-//
-////			std::cout << "Recevied RREP src, dst: " << mac_routing_h.GetSrcAddr()
-////					<< ", " << mac_routing_h.GetDstAddr() << " Hop Count: " << mac_routing_h.GetHopCount() << "\n";
-//
-//			// Update forwarding table
-//			pkt->AddHeader(mac_routing_h);
-////			std::cout << "MAC_ROUTING src addr: " << mac_routing_h.GetSrcAddr() << "\n";
-//			UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), CalculateWeight(pkt));
-//
-//			// Check whether this RREP is for this node or not
-//			if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
-//			{
-//				// Update received timestamp and clear the send queue by sending out all buffered packets, and delete queue
-//				m_rrep_expirations.find(mach.GetDA())->second = Simulator::Now();
-//				while (!m_send_queue.find(mach.GetDA())->second.empty())
-//				{
-//					// Forward packet
-////					std::cout << "Forwarding packet from send queue... " << "\n";
-//					NS_LOG_DEBUG("Forwarding packet from send queue... ");
-//
-//					if (m_send_queue.count(mach.GetDA()) == 0)
-//					{
-//						return true;
-//					}
-//
-//					Ptr<Packet> p = m_send_queue.find(mach.GetDA())->second.front();
-//
-//					ForwardPacket(p);
-//					m_send_queue.find(mach.GetDA())->second.pop();
-//
-//				}
-//				// Delete queue
-//				m_send_queue.erase(mach.GetDA());
-//
-//				return true;
-//			}
-//			else
-//			{
-//				// Otherwise, increment hop_count, broadcast RREP further
-//				mac_routing_h.IncrementHopCount();
-//				mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-//				mac_routing_h.SetDstAddr(AquaSimAddress::GetBroadcast());
-//				ash.SetDirection(AquaSimHeader::DOWN);
-//
-//				pkt->AddHeader(mac_routing_h);
-//				pkt->AddHeader(mach);
-//				pkt->AddHeader(ash);
-//
-//				SendDownFrame(pkt);
-////				pkt=0;
-//			}
-//
-//			return true;
-//		}
-//		// ACK / Reward
-//		if (mac_routing_h.GetPType() == 3)
-//		{
-//			// Check if the received reward message's dst_addr exists in the reward_expiration list
-//			std::map<AquaSimAddress, AquaSimAddress> m;
-//			m.insert(std::make_pair(mach.GetDA(), mac_routing_h.GetSrcAddr()));
-////			std::cout << mach.GetDA() << "\n";
-////			std::cout << mac_routing_h.GetSrcAddr() << "\n";
-//
-//			if (m_reward_expirations.count(m) != 0)
-//			{
-//				// Check if the reward is received within the reward_timeout or not
-////				std::cout << "Time difference: " << (Simulator::Now() - m_reward_expirations.find(m)->second) << "\n";
-////				std::cout << "Reward timeout: " << m_reward_timeout << "\n";
-//
-//				if ((Simulator::Now() - m_reward_expirations.find(m)->second) <= m_reward_timeout)
-//				{
-//					// Update reward value in the forwarding table
-//					UpdateWeight(m.begin()->first, m.begin()->second, mac_routing_h.GetReward());
-////					std::cout << "REWARD FROM MESSAGE: " << mac_routing_h.GetReward() << "\n";
-//
-//					// Update the timestamp value in the reward_expiration list
-//					m_reward_expirations.at(m) = Simulator::Now();
-//
-//				}
-//				else
-//				{
-//					// Raise warning
-////					std::cout << "Warning! Received reward is out of timeout: " <<
-////							Simulator::Now() - m_reward_expirations.find(m)->second << "\n";
-//					NS_LOG_DEBUG("Warning! Received reward is out of timeout: " <<
-//							Simulator::Now() - m_reward_expirations.find(m)->second);
-//				}
-//
-//			}
-////			else
-////			{
-////				// This cannot happen
-////				std::cout << "Warning! Reward is received from unexpected sender address: " << mac_routing_h.GetSrcAddr() << "\n";
-//////				std::cout << mach.GetDA() << "\n";
-//////				std::cout << mac_routing_h.GetSrcAddr() << "\n";
-////			}
-//
-//			return true;
-//		}
-//
-//		// Some unknown packet type id
-//		else
-//		{
-////			std::cout << "Unknown packet type is received: " << mac_routing_h.GetPType() << "\n";
-//			NS_LOG_DEBUG("Unknown packet type is received: " << mac_routing_h.GetPType());
-//		}
-
-//    pkt->AddHeader(ash);  //leave MacHeader off since sending to upper layers
-//	return SendUp(pkt);
-//	}
 
 //	printf("underwaterAquaSimRoutingMac: this is neither broadcast nor my packet, just drop it\n");
 	//pkt=0;
@@ -882,78 +647,7 @@ AquaSimRoutingMac::SendDownFrame (Ptr<Packet> pkt)
 		  return true;
 	  }
 
-//	  if (m_status == CTS_WAIT)
-//	  {
-//		  return true;
-//	  }
-
-
-//	  mach.SetDA(ash.GetDAddr());
-//	  mach.SetSA(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-
-//	  if( m_packetSize != 0 )
-//	    ash.SetSize(m_packetSize);
-//	  else
-//	    ash.SetSize(m_packetHeaderSize + ash.GetSize());
-//
-//	  ash.SetTxTime(GetTxTime(pkt));
-//
-//	  switch( m_device->GetTransmissionStatus() )
-//	  {
-//	  case SLEEP:
-//	      PowerOn();
-//	      break;
-//	  case NIDLE:
-
-	  ///////////////////////
-	  ///////////////////////
-//	      ash.SetDirection(AquaSimHeader::DOWN);
-//	      //ash->addr_type()=NS_AF_ILINK;
-//	      //add the sync hdr
-//
-////	      // Set Tx power
-////	      mac_routing_h.SetTxPower(CalculateTxPower(distance));
-////	      mac_routing_h.SetTxPower(20);
-//
-//
-//	      pkt->AddHeader(mac_routing_h);
-//	      pkt->AddHeader(mach);
-//	      pkt->AddHeader(ash);
-//	      //Phy()->SetPhyStatus(PHY_SEND);
-//
-//	      SendDown(pkt);
-	  ////////////////////////
-	  ////////////////////////
-
-//	      m_backoffCounter=0;
-//	      return true;
-//	  case RECV:
-//	    {
-//	      double backoff=m_rand->GetValue()*BC_BACKOFF;
-//	      NS_LOG_DEBUG("BACKOFF time:" << backoff << " on node:" << m_device->GetAddress() << "\n");
-////	      std::cout << "BACKOFF time:" << backoff << " on node:" << m_device->GetAddress() << "\n";
-//	      //pkt->AddHeader(mach);
-//	      pkt->AddHeader(ash);
-//	      Simulator::Schedule(Seconds(backoff),&AquaSimRoutingMac::BackoffHandler,this,pkt);
-//	    }
-//	      return true;
-//	  case SEND:
-//	    {
-//	      double backoff=m_rand->GetValue()*BC_BACKOFF;
-//	      NS_LOG_DEBUG("BACKOFF time:" << backoff << " on node:" << m_device->GetAddress() << "\n");
-//	      //pkt->AddHeader(mach);
-//	      pkt->AddHeader(ash);
-//	      Simulator::Schedule(Seconds(backoff),&AquaSimRoutingMac::BackoffHandler,this,pkt);
-//	    }
-//	    return true;
-//	      /*pkt=0;*/
-//	  default:
-//	      /*
-//	      * all cases have been processed above, so simply return
-//	      */
-//	    break;
-//	  }
-	  return true;  //may be bug due to Sleep/default cases
+	  return true;
 }
 
 // Forward packet / frame coming from the application or the network (DATA type)
@@ -975,12 +669,11 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 	// Reset the direction if the packet is forwarded by intermediate node
 	ash.SetDirection(AquaSimHeader::DOWN);
 
-//	// Check if dst_addr is in the forwarding table
-//	if (m_forwarding_table.count(dst_addr) != 0)
-	// Check if dst_addr is in the distances map
+//	// Check if dst_addr is in the distances list
 	if (m_distances.count(dst_addr) != 0)
 	{
-//		// Store the optimal distance metric for the current packet towards given destination
+
+		//TODO://		// Store the optimal distance metric for the current packet towards given destination
 //		double optimal_metric = CalculateOptimalMetric(m_distances.find(dst_addr)->second);
 
 		// Update the forwarding table according to the known distances
@@ -1032,8 +725,8 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 		mac_routing_h.SetSenderAddr(sender_addr);
 
 		// Set tx time and size
-		ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-		ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
+		ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize() + p->GetSize());
+		ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize() + p->GetSize()));
 		ash.SetErrorFlag(false);
 		ash.SetDirection(AquaSimHeader::DOWN);
 
@@ -1062,6 +755,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 		p->AddHeader(mach);
 		p->AddHeader(ash);
 
+		///
 		// Disable reward timer expiration
 //		std::map<AquaSimAddress, AquaSimAddress> m;
 //		m.insert(std::make_pair(dst_addr, next_hop_addr));
@@ -1075,7 +769,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 //
 //			Simulator::Schedule(m_reward_timeout, &AquaSimRoutingMac::RewardExpirationHandler, this, m);
 //		}
-		//
+		///
 
 //		// Send down the packet to the next hop
 ////		std::cout << "Sending down data packet " << Simulator::Now() << "\n";
@@ -1140,15 +834,6 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 			init->AddHeader(mach);
 			init->AddHeader(ash);
 
-//			// Wait for RREP - set RREP timeout event in scheduler
-//			// Set RREP timer
-//			std::cout << "FORWARD PACKET DST_ADDR: " << dst_addr << "\n";
-//			if (m_rrep_expirations.count(dst_addr) == 0)
-//			{
-//				m_rrep_expirations.insert(std::make_pair(dst_addr, Time::FromInteger(0, Time::S)));
-//				Simulator::Schedule(m_rrep_timeout, &AquaSimRoutingMac::RrepExpirationHandler, this, dst_addr);
-//			}
-
 			// Listen for backward INIT messages
 			// Set INIT timer
 			if (m_init_expirations.count(dst_addr) == 0)
@@ -1161,9 +846,6 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 //			std::cout << "Sending RREQ " << Simulator::Now() << "\n";
 //			NS_LOG_DEBUG("Sending RREQ " << Simulator::Now());
 			NS_LOG_DEBUG("Sending INIT " << Simulator::Now());
-
-//			// Put the RREQ into rreq_list to further filter duplicate ones out
-//			FilterDuplicateRreq(mach.GetSA());
 
 //			// Put the INIT into init_list to further filter duplicate ones out
 //			FilterDuplicateInit(mach.GetSA());
@@ -1180,7 +862,7 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 	return true;
 }
 
-// Maybe consider in the future an average weight towards given destination
+// TODO: Maybe consider in the future the impact of the average weight towards given destination
 //double
 //AquaSimRoutingMac::GenerateReward(AquaSimAddress dst_addr)
 //{
@@ -1212,56 +894,6 @@ AquaSimRoutingMac::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int 
 //	return weight_sum / n;
 //}
 
-void
-AquaSimRoutingMac::SendRewardHandler (std::map<AquaSimAddress, AquaSimAddress> dst_sender_map, double reward, Ptr<Packet> p)
-{
-	// Send reward
-	SendReward(dst_sender_map.begin()->second, reward, p);
-	// Remove the corresponding map entry
-	m_reward_delays.erase(dst_sender_map);
-}
-
-void
-AquaSimRoutingMac::SendReward(AquaSimAddress dst_addr, double reward, Ptr<Packet> p)
-{
-	AquaSimHeader ash;
-	MacHeader mach;
-	MacRoutingHeader mac_routing_h;
-
-	p->RemoveHeader(ash);
-	p->RemoveHeader(mach);
-	p->RemoveHeader(mac_routing_h);
-
-	Ptr<Packet> reward_frame = Create<Packet>();
-
-	mach.SetSA(dst_addr);
-	mach.SetDA(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-
-	mac_routing_h.SetPType(3);	// 3 - Reward / ACK message type
-	mac_routing_h.SetId(0);
-	mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
-	// Set frame to broadcast address
-	mac_routing_h.SetDstAddr(dst_addr);
-	mac_routing_h.SetReward(reward);
-
-	// Set aqua-sim-header parameters for correct handling on Phy layer
-	ash.SetSize(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize());
-	ash.SetTxTime(Phy()->CalcTxTime(mac_routing_h.GetSerializedSize() + mach.GetSerializedSize()));
-	ash.SetErrorFlag(false);
-	ash.SetDirection(AquaSimHeader::DOWN);
-
-	// Send frame
-	reward_frame->AddHeader(mac_routing_h);
-	reward_frame->AddHeader(mach);
-	reward_frame->AddHeader(ash);
-
-//	std::cout << "SENDING REWARD: " << dst_addr << " " << Simulator::Now() << "\n";
-	NS_LOG_DEBUG("SENDING REWARD: " << dst_addr << " " << Simulator::Now());
-
-//	std::cout << "MACH DST ADDR: " << mach.GetDA() << "\n";
-	SendDownFrame(reward_frame);
-//	p = 0;
-}
 
 // ONLY GREEDY FOR NOW
 AquaSimAddress
@@ -1355,8 +987,6 @@ AquaSimRoutingMac::UpdateWeight(AquaSimAddress dst_addr, AquaSimAddress next_hop
 double
 AquaSimRoutingMac::CalculateWeight(double distance)
 {
-//	MacRoutingHeader mac_routing_h;
-//	frame->RemoveHeader(mac_routing_h);
 	// Calculate weight based on the difference between optimal_distance and D(Tx,Rx)
 	if (distance <= 0)
 	{
@@ -1375,6 +1005,7 @@ AquaSimRoutingMac::CalculateWeight(double distance)
 	}
 }
 
+// Not used for now
 void
 AquaSimRoutingMac::RewardExpirationHandler(std::map<AquaSimAddress, AquaSimAddress> dst_to_next_hop_map)
 {
@@ -1394,31 +1025,6 @@ AquaSimRoutingMac::RewardExpirationHandler(std::map<AquaSimAddress, AquaSimAddre
 	// Delete entry
 	m_reward_expirations.erase(dst_to_next_hop_map);
 }
-
-//void
-//AquaSimRoutingMac::RrepExpirationHandler(AquaSimAddress node_address)
-//{
-//	// Check the last received RREP timestamp for a given address
-//	// If the time difference is greater than the RREP timeout value, then clear the corresponding queue
-//	if ((Simulator::Now() - m_rrep_expirations.find(node_address)->second) > m_rrep_timeout)
-//	{
-////		std::cout << "RREP wait timeout!\n";
-//		NS_LOG_DEBUG("RREP wait timeout!");
-//
-////		std::cout << "DST_ADDR: " << node_address << "\n";
-//		NS_LOG_DEBUG("DST_ADDR: " << node_address);
-//
-////		std::cout << "TS: " << m_rrep_expirations.find(node_address)->second << "\n";
-//		NS_LOG_DEBUG("TS: " << m_rrep_expirations.find(node_address)->second);
-//
-////		std::cout << "Current Time: " << Simulator::Now() << "\n";
-//		NS_LOG_DEBUG("Current Time: " << Simulator::Now());
-//
-//		// Delete the entry and the queue
-//		m_rrep_expirations.erase(node_address);
-//		m_send_queue.erase(node_address);
-//	}
-//}
 
 void
 AquaSimRoutingMac::InitExpirationHandler(AquaSimAddress node_address)
@@ -1516,65 +1122,6 @@ AquaSimRoutingMac::SetToIdle()
 	{
 		std::cout << "SETTING TO IDLE: " << Simulator::Now() << "\n";
 		m_status = IDLE;
-	}
-}
-
-// Filter duplicate broadcast frames reception
-bool
-AquaSimRoutingMac::FilterDuplicateRreq(AquaSimAddress src_addr)
-{
-	// Check if this address already exists in the list
-	if (m_rreq_list.count(src_addr) == 0)
-	{
-		// If no, then add the address with the current timestamp, return True -> packet is not filtered
-		m_rreq_list.insert(std::make_pair(src_addr, Simulator::Now()));
-		return true;
-	}
-	else
-	{
-		// Check the last received timestamp, if it's larger than the RREP timeout, then update the time, return true
-		if ((Simulator::Now() - m_rreq_list.find(src_addr)->second) > m_rrep_timeout + Seconds(0.1))
-		{
-//			std::cout << "RREQ Current Time: " << Simulator::Now() << "\n";
-			NS_LOG_DEBUG("RREQ Current Time: " << Simulator::Now());
-
-//			std::cout << "RREQ LIST LAST TS: " << m_rreq_list.find(src_addr)->second << "\n";
-			NS_LOG_DEBUG("RREQ LIST LAST TS: " << m_rreq_list.find(src_addr)->second);
-
-			m_rreq_list.at(src_addr) = Simulator::Now();
-			return true;
-		}
-		else
-		{
-			// Otherwise, filter out the frame
-			return false;
-		}
-	}
-}
-
-bool
-AquaSimRoutingMac::FilterDuplicateRrep(AquaSimAddress src_addr)
-{
-	// Check if this address already exists in the list
-	if (m_rrep_list.count(src_addr) == 0)
-	{
-		// If no, then add the address with the current timestamp, return True -> packet is not filtered
-		m_rrep_list.insert(std::make_pair(src_addr, Simulator::Now()));
-		return true;
-	}
-	else
-	{
-		// Check the last received timestamp, if it's larger than the RREP timeout, then update the time, return true
-		if ((Simulator::Now() - m_rrep_list.find(src_addr)->second) >= m_rrep_timeout)
-		{
-			m_rrep_list.at(src_addr) = Simulator::Now();
-			return true;
-		}
-		else
-		{
-			// Otherwise, filter out the frame
-			return false;
-		}
 	}
 }
 
@@ -1712,22 +1259,6 @@ AquaSimRoutingMac::CalculateOptimalMetric(double distance)
 	// This metric should be calculated considering max tx_power, rx_power threshold, processing power
 	// Currently, use the constant number of intermediate nodes
 	return distance / (3 + 1); // 3 intermediate nodes => 4 chunks of sub-distances
-}
-
-void
-AquaSimRoutingMac::BackoffHandler(Ptr<Packet> pkt)
-{
-  m_backoffCounter++;
-  if (m_backoffCounter<BC_MAC_ROUTING_MAXIMUMCOUNTER)
-//    TxProcess(pkt);
-	  SendDownFrame(pkt);
-  else
-    {
-//      NS_LOG_INFO("BackoffHandler: too many backoffs");
-      NS_LOG_DEBUG("BackoffHandler: too many backoffs");
-      m_backoffCounter=0;
-      DropPacket(pkt);
-    }
 }
 
 void AquaSimRoutingMac::DoDispose()

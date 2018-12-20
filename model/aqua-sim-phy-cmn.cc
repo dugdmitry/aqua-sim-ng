@@ -440,6 +440,8 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     return NULL;
   }
 
+  MacHeader mach;
+  p->PeekHeader(mach);
   // Disable this for MAC-ROUTING tests
   /**
   * any packet error set here result from that a packet
@@ -456,19 +458,29 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     * when this node wake up or start to receive other packets
     */
     NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
+//    std::cout << "TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus() << "\n";
     asHeader.SetErrorFlag(true);
   }
   else {
-      GetNetDevice()->SetTransmissionStatus(RECV);
+	  /// MAC-ROUTING DEV. Filter duplicate frames by rx threshold
+	  if (pstamp.GetPr() > 0.01)
+		{
+		    GetNetDevice()->SetTransmissionStatus(RECV);
+		}
+	  ///
+
       //SetPhyStatus(PHY_RECV);
       //finish recv packet
+
+//      std::cout << "RECV TIME: " << CalcTxTime(asHeader.GetSize()) << "\n";
+
       Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
   }
 
   UpdateRxEnergy(txTime, (bool)asHeader.GetErrorFlag());
 
-  MacHeader mach;
-  p->PeekHeader(mach);
+//  MacHeader mach;
+//  p->PeekHeader(mach);
   if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
     GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
   }
