@@ -366,7 +366,6 @@ bool
 AquaSimPhyCmn::Recv(Ptr<Packet> p)
 {
   NS_LOG_FUNCTION(this << p << "at time" << Simulator::Now().GetSeconds() << " on node " << GetNetDevice()->GetAddress());
-
   /*std::cout << "\nPhyCmn: @Recv check:\n";
   p->Print(std::cout);
   std::cout << "\n";*/

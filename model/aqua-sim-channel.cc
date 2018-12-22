@@ -136,7 +136,6 @@ AquaSimChannel::Recv(Ptr<Packet> p, Ptr<AquaSimPhy> phy)
   /*std::cout << "\nChannel: @Recv check:\n";
   p->Print(std::cout);
   std::cout << "\n";*/
-
   NS_LOG_FUNCTION(this << p << phy);
   NS_ASSERT(p != NULL || phy != NULL);
   return SendUp(p,phy);

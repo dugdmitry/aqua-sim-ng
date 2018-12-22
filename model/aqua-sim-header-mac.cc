@@ -653,7 +653,6 @@ SFamaHeader::GetSize(enum PacketType pType)
   if( pType == SFAMA_RTS || pType == SFAMA_CTS ) {
     pkt_size += sizeof(uint16_t)+1; //size of packet_type and slotnum
   }
-
   return pkt_size;
 }
 void

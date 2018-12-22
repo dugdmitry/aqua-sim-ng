@@ -47,6 +47,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("range", "Transmission range", range);
   cmd.AddValue ("distance", "Distance between nodes", distance);
   cmd.AddValue ("data_rate", "On/Off app data rate, bps", m_dataRate);
+  cmd.AddValue ("packet_size", "Packet size", m_packetSize);
 
   cmd.Parse(argc,argv);
 
@@ -68,8 +69,8 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 //  asHelper.SetMac("ns3::AquaSimBroadcastMac");
-  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range));
-//  asHelper.SetMac("ns3::AquaSimSFama");
+//  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range));
+  asHelper.SetMac("ns3::AquaSimSFama");
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 
@@ -130,7 +131,7 @@ main (int argc, char *argv[])
   app.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
 
   ApplicationContainer apps = app.Install (nodesCon);
-  apps.Start (Seconds (0.5));
+  apps.Start (Seconds (1.5));
   apps.Stop (Seconds (simStop + 1));
 
 
