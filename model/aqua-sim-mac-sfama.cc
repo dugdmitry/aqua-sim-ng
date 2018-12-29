@@ -96,6 +96,10 @@ AquaSimSFama::GetTypeId(void)
       IntegerValue(1),
       MakeIntegerAccessor(&AquaSimSFama::m_maxBurst),
       MakeIntegerChecker<int>())
+	.AddAttribute("packet_size", "Data packet size, bytes",
+	  DoubleValue(50),
+	  MakeDoubleAccessor(&AquaSimSFama::m_packet_size),
+	  MakeDoubleChecker<double>())
     ;
   return tid;
 }
@@ -189,8 +193,14 @@ AquaSimSFama::InitSlotLen()
 //		GetTxTime(100 +					// SFAMA.GetSize(SFamaHeader::SFAMA_CTS
 //		Device()->GetPhy()->GetTransRange()/1500.0).ToDouble(Time::S);
 
-	m_slotLen = m_guardTime +
-			GetTxTime(SFAMA.GetSize(SFamaHeader::SFAMA_DATA)).ToDouble(Time::S) + 2*Device()->GetPhy()->GetTransRange()/1500.0;
+//	m_slotLen = m_guardTime +
+//			GetTxTime(SFAMA.GetSize(SFamaHeader::SFAMA_DATA)).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0;
+
+//  std::cout << "PACKET SIZE: " << m_packet_size << "\n";
+//  std::cout << "TRANS RANGE: " << Device()->GetPhy()->GetTransRange() << "\n";
+
+  m_slotLen = GetTxTime(m_packet_size).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0 +
+			0.5*Device()->GetPhy()->GetTransRange()/1500.0; // guard_time = half of propagation delay
 
 //	std::cout << "SLOT LENGTH: " << m_slotLen << "\n";
 }

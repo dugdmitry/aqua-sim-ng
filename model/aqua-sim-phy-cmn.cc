@@ -321,7 +321,11 @@ Ptr<Packet>
 AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 {
   AquaSimPacketStamp pstamp;
+//  std::cout << "PT VALUE:" << m_pT << "\n";
   pstamp.SetPt(m_pT);
+  // EXPERIMENTAL !!! Consider the tx power in EM()
+  EM()->SetTxPower(m_pT);
+
   pstamp.SetPr(m_lambda);
   pstamp.SetFreq(m_freq);
   // Disable this for mac_routing dev
@@ -344,9 +348,9 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 	  p->RemoveHeader(mac_routing_h);
 
 	  pstamp.SetPt(mac_routing_h.GetTxPower());
-//	  // Experimental !!!
-//	  EM()->SetTxPower(mac_routing_h.GetTxPower());
-//	  ///
+	  // Experimental !!!
+	  EM()->SetTxPower(mac_routing_h.GetTxPower());
+	  ///
 
 	  p->AddHeader(mac_routing_h);
   }

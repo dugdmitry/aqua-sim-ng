@@ -28,7 +28,7 @@ AquaSimRoutingMac::AquaSimRoutingMac()
 {
 //  m_rand = CreateObject<UniformRandomVariable> ();
   m_max_range = 150;
-  m_max_tx_power = 10; // Watts
+  m_max_tx_power = 20; // Watts
 
   m_status = IDLE;
 }
@@ -44,7 +44,7 @@ AquaSimRoutingMac::GetTypeId()
         MakeDoubleAccessor (&AquaSimRoutingMac::m_max_range),
         MakeDoubleChecker<double> ())
 	  .AddAttribute("max_tx_power", "Maximum transmission power",
-		DoubleValue(10),
+		DoubleValue(20),
 		MakeDoubleAccessor (&AquaSimRoutingMac::m_max_tx_power),
 		MakeDoubleChecker<double> ())
 	  .AddAttribute("optimal_metric", "Optimal Distance metric, m",

@@ -195,6 +195,9 @@ private:
 	double m_guardTime;  //need to be binded
 	double m_slotLen;
 
+	// Store data packet size value from the app
+	double m_packet_size = 50;
+
 	bool m_isInRound;
 	bool m_isInBackoff;
 

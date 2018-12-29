@@ -50,6 +50,9 @@ main (int argc, char *argv[])
 //  int max_y = 10000; // meters
 //  double distance = 10; // meters
 
+  // Max Tx power
+  double max_tx_power = 20; // Watts
+
 //  LogComponentEnable ("ASBroadcastMac", LOG_LEVEL_INFO);
 
   //to change on the fly
@@ -60,6 +63,8 @@ main (int argc, char *argv[])
   cmd.AddValue ("grid_size", "Grid size, in km", max_x);
   cmd.AddValue ("n_nodes", "Number of nodes", n_nodes);
   cmd.AddValue ("range", "Transmission range", range);
+  cmd.AddValue ("tx_power", "Max transmission power", max_tx_power);
+
 
   cmd.Parse(argc,argv);
 
@@ -87,9 +92,10 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 
-  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4));
+  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
+		  "max_tx_power", DoubleValue(max_tx_power));
 
-//    asHelper.SetMac("ns3::AquaSimSFama");
+//    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
 //    asHelper.SetMac("ns3::AquaSimBroadcastMac");
 //  asHelper.SetMac("ns3::AquaSimAloha");
 
@@ -98,7 +104,8 @@ main (int argc, char *argv[])
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 
-  asHelper.SetPhy("ns3::AquaSimPhyCmn");
+  // Define the Tx power
+  asHelper.SetPhy("ns3::AquaSimPhyCmn", "PT", DoubleValue(max_tx_power));
 
   /*
    * Set up mobility model for nodes and sinks
