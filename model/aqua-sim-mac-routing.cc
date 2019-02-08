@@ -1248,7 +1248,16 @@ AquaSimRoutingMac::CalculateTxPower(double d)
 	  // Calculate Tx power given the distance and expected Rx_threshold
 	  // The calculation is based on Rayleight model, used in the aqua-sim-propagation module:
 	  // Rx = Tx / (d^k * alpha^(d/1000)), k = 2, alpha = 4.07831, (f = 25kHz)
-	return pow(d, 2) * pow(4.07831, (d / 1000)) * (m_rx_threshold + 0.0003); // 0.0003 to adjust the model
+	double tx_power = pow(d, 2) * pow(4.07831, (d / 1000)) * (m_rx_threshold + 0.0003); // 0.0003 to adjust the model
+
+	if (tx_power > m_max_tx_power)
+	{
+		return m_max_tx_power;
+	}
+	else
+	{
+		return tx_power;
+	}
 }
 
 double
