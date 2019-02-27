@@ -97,7 +97,8 @@ main (int argc, char *argv[])
 
 //    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
 //    asHelper.SetMac("ns3::AquaSimBroadcastMac");
-  asHelper.SetMac("ns3::AquaSimAloha");
+  asHelper.SetMac("ns3::AquaSimAloha", "AckOn", IntegerValue(0), "MinBackoff", DoubleValue(0.0),
+		  "MaxBackoff", DoubleValue(1.5));
 
 
 

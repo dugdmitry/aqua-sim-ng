@@ -446,9 +446,6 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     return NULL;
   }
 
-  MacHeader mach;
-  p->PeekHeader(mach);
-  // Disable this for MAC-ROUTING tests
   /**
   * any packet error set here result from that a packet
   * cannot be detected by the modem, so modem's status doesn't receive
@@ -458,59 +455,124 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
               || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
 				      || pstamp.GetPr() < m_RXThresh)
   {
-
     /**
     * p still can pass since its signal may affect other packets
     * when this node wake up or start to receive other packets
     */
     NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
-//    std::cout << "TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus() << "\n";
     asHeader.SetErrorFlag(true);
   }
   else {
-	  /// MAC-ROUTING DEV. Filter duplicate frames by rx threshold
-	  if (pstamp.GetPr() > 0.01)
-		{
-		    GetNetDevice()->SetTransmissionStatus(RECV);
-		}
-	  ///
-
+      GetNetDevice()->SetTransmissionStatus(RECV);
       //SetPhyStatus(PHY_RECV);
       //finish recv packet
-
-//      std::cout << "RECV TIME: " << CalcTxTime(asHeader.GetSize()) << "\n";
-
       Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
   }
 
   UpdateRxEnergy(txTime, (bool)asHeader.GetErrorFlag());
 
-//  MacHeader mach;
-//  p->PeekHeader(mach);
+  MacHeader mach;
+  p->PeekHeader(mach);
   if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
     GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
   }
-  // Get recv power for mac_routing dev
-  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
-  {
-  	MacRoutingHeader mac_routing_h;
-
-  	p->RemoveHeader(mach);
-  	p->RemoveHeader(mac_routing_h);
-
-  	mac_routing_h.SetRxPower(pstamp.GetPr());
-
-  	p->AddHeader(mac_routing_h);
-  	p->AddHeader(mach);
-
-  }
-  //
 
   p->AddHeader(asHeader);
   //p->AddHeader(pstamp); no longer needed.
 
   return p;
 }
+
+//Ptr<Packet>
+//AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
+//{
+//  NS_LOG_FUNCTION(this << p);
+//
+//  AquaSimPacketStamp pstamp;
+//  AquaSimHeader asHeader;
+//  p->RemoveHeader(pstamp);
+//  p->RemoveHeader(asHeader);
+//  NS_LOG_DEBUG ("TxTime=" << asHeader.GetTxTime());
+//  Time txTime = asHeader.GetTxTime();
+//
+//  if (GetNetDevice()->FailureStatus()) {
+//    NS_LOG_WARN("AquaSimPhyCmn: nodeId=" << GetNetDevice()->GetNode()->GetId() << " fails!\n");
+//    p = 0;
+//    return NULL;
+//  }
+//
+//  if (!MatchFreq(pstamp.GetFreq())) {
+//    NS_LOG_WARN("AquaSimPhyCmn: Cannot match freq(" << pstamp.GetFreq() << ") on node(" <<
+//		GetNetDevice()->GetNode() << ")");
+//    p = 0;
+//    return NULL;
+//  }
+//
+//  MacHeader mach;
+//  p->PeekHeader(mach);
+//  // Disable this for MAC-ROUTING tests
+//  /**
+//  * any packet error set here result from that a packet
+//  * cannot be detected by the modem, so modem's status doesn't receive
+//  */
+//  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
+//				      || GetNetDevice()->GetTransmissionStatus() == SEND
+//              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//				      || pstamp.GetPr() < m_RXThresh)
+//  {
+//
+//    /**
+//    * p still can pass since its signal may affect other packets
+//    * when this node wake up or start to receive other packets
+//    */
+//    NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
+////    std::cout << "TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus() << "\n";
+//    asHeader.SetErrorFlag(true);
+//  }
+//  else {
+//	  /// MAC-ROUTING DEV. Filter duplicate frames by rx threshold
+//	  if (pstamp.GetPr() > 0.01)
+//		{
+//		    GetNetDevice()->SetTransmissionStatus(RECV);
+//		}
+//	  ///
+//
+//      //SetPhyStatus(PHY_RECV);
+//      //finish recv packet
+//
+////      std::cout << "RECV TIME: " << CalcTxTime(asHeader.GetSize()) << "\n";
+//
+//      Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
+//  }
+//
+//  UpdateRxEnergy(txTime, (bool)asHeader.GetErrorFlag());
+//
+////  MacHeader mach;
+////  p->PeekHeader(mach);
+//  if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
+//    GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
+//  }
+//  // Get recv power for mac_routing dev
+//  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+//  {
+//  	MacRoutingHeader mac_routing_h;
+//
+//  	p->RemoveHeader(mach);
+//  	p->RemoveHeader(mac_routing_h);
+//
+//  	mac_routing_h.SetRxPower(pstamp.GetPr());
+//
+//  	p->AddHeader(mac_routing_h);
+//  	p->AddHeader(mach);
+//
+//  }
+//  //
+//
+//  p->AddHeader(asHeader);
+//  //p->AddHeader(pstamp); no longer needed.
+//
+//  return p;
+//}
 
 /**
 * pass packet p to channel

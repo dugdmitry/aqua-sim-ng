@@ -62,6 +62,7 @@ AquaSimAloha::GetTypeId(void)
       .AddConstructor<AquaSimAloha>()
       .AddAttribute("Persistent", "Persistence of sending data packets",
 	DoubleValue(1.0),
+//	DoubleValue(0.01),
 	MakeDoubleAccessor (&AquaSimAloha::m_persistent),
 	MakeDoubleChecker<double>())
       .AddAttribute("AckOn", "If acknowledgement is on",
@@ -349,6 +350,8 @@ bool AquaSimAloha::RecvProcess(Ptr<Packet> pkt)
                         cpkt->RemoveHeader(alohaH);
                         asHeader.SetSize(asHeader.GetSize() - alohaH.GetSerializedSize());
                         cpkt->AddHeader(asHeader);
+//                        std::cout << "DST ADDRESS: " << asHeader.GetDAddr() << " NODE ADDRESS: " << myAddr <<
+//                        		" ID: " << asHeader.GetUId() <<"\n";
                         SendUp(cpkt);
 
 			if ( m_AckOn && (recver != AquaSimAddress::GetBroadcast()))
