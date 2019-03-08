@@ -1,7 +1,7 @@
 /*
  * mmac_tests.cc
  *
- *  Created on: Nov 25, 2018
+ *  Created on: March 8, 2019
  *      Author: dmitry
  */
 
@@ -26,7 +26,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("MAC_routing_grid_test");
+NS_LOG_COMPONENT_DEFINE("MAC_routing_grid_random_test");
 
 int
 main (int argc, char *argv[])
@@ -143,43 +143,11 @@ main (int argc, char *argv[])
   int j = 0;
   char duration_on[300];
   char duration_off[300];
-  // Store distance between current nodes
-//  double distance = -1;
+
   // Set application to each node
   for (NodeContainer::Iterator i = nodesCon.Begin(); i != nodesCon.End(); i++)
   {
-	  PacketSocketAddress socket;
-	  socket.SetAllDevices();
-
-	  // Set random destination
-	  int dst = uni_nodes(rng);
-//	  std::cout << "Destination: " << dst << "\n";
-
-	  // Make sure that the selected destination is within the transmission range
-	  // Get distance
-//	  distance = sqrt(mobility.GetDistanceSquaredBetween(nodesCon.Get(j), devices.Get(dst)->GetNode()));
-//	  int k = 0;
-//	  while ((distance > range) || (j == dst))
-	  while (j == dst)
-	  {
-		  // Select new destination, update distance
-		  dst = uni_nodes(rng);
-//		  distance = sqrt(mobility.GetDistanceSquaredBetween(nodesCon.Get(j), devices.Get(dst)->GetNode()));
-//		  k++;
-//		  std::cout << k++ << "\n";
-	  }
-
-//	  std::cout << "DISTANCE: " << distance << "\n";
-
-	  socket.SetPhysicalAddress (devices.Get(dst)->GetAddress());
-
-//	  std::cout << "DST_ADDR: " << devices.Get(dst)->GetAddress() << "\n";
-
-//	  socket.SetPhysicalAddress (devices.Get(1)->GetAddress());
-	  socket.SetProtocol (0);
-
-	  OnOffHelper app ("ns3::PacketSocketFactory", Address (socket));
-//	  OnOffHelper app ("ns3::PacketSocketFactory", n_nodes);
+	  OnOffHelper app ("ns3::PacketSocketFactory", n_nodes);
 
 	  sprintf(duration_on, "ns3::ExponentialRandomVariable[Mean=%f]", (m_packetSize * 8) / m_dataRate);
 	  sprintf(duration_off, "ns3::ExponentialRandomVariable[Mean=%f]", 1 / lambda);
@@ -197,7 +165,6 @@ main (int argc, char *argv[])
 	  apps.Stop (Seconds (simStop + 1));
 
 	  j++;
-
   }
 
   Packet::EnablePrinting (); //for debugging purposes

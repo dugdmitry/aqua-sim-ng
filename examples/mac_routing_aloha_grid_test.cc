@@ -1,7 +1,7 @@
 /*
- * mmac_tests.cc
+ * mac_routing_aloha_tests
  *
- *  Created on: Nov 25, 2018
+ *  Created on: Feb 27, 2019
  *      Author: dmitry
  */
 
@@ -26,7 +26,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("MAC_routing_grid_test");
+NS_LOG_COMPONENT_DEFINE("MAC_routing_aloha_grid_test");
 
 int
 main (int argc, char *argv[])
@@ -92,7 +92,7 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 
-  asHelper.SetMac("ns3::AquaSimRoutingMac", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
+  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
 		  "max_tx_power", DoubleValue(max_tx_power));
 
 //    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
@@ -172,15 +172,10 @@ main (int argc, char *argv[])
 //	  std::cout << "DISTANCE: " << distance << "\n";
 
 	  socket.SetPhysicalAddress (devices.Get(dst)->GetAddress());
-
-//	  std::cout << "DST_ADDR: " << devices.Get(dst)->GetAddress() << "\n";
-
 //	  socket.SetPhysicalAddress (devices.Get(1)->GetAddress());
 	  socket.SetProtocol (0);
 
 	  OnOffHelper app ("ns3::PacketSocketFactory", Address (socket));
-//	  OnOffHelper app ("ns3::PacketSocketFactory", n_nodes);
-
 	  sprintf(duration_on, "ns3::ExponentialRandomVariable[Mean=%f]", (m_packetSize * 8) / m_dataRate);
 	  sprintf(duration_off, "ns3::ExponentialRandomVariable[Mean=%f]", 1 / lambda);
 //	  std::cout << "Duration On: " << duration_on << "\n";
@@ -192,7 +187,6 @@ main (int argc, char *argv[])
 	  app.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
 
 	  ApplicationContainer apps = app.Install (nodesCon.Get(j));
-
 	  apps.Start (Seconds (0.5));
 	  apps.Stop (Seconds (simStop + 1));
 
