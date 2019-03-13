@@ -43,6 +43,11 @@ def build(bld):
     obj = bld.create_ns3_program('SFAMAGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
     obj.source = 'sfama_grid_test.cc'
     
+    obj = bld.create_ns3_program('SFAMAGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'sfama_grid_random_test.cc'
+        
     obj = bld.create_ns3_program('ALOHAGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
     obj.source = 'aloha_grid_test.cc'
     
+    obj = bld.create_ns3_program('ALOHAGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'aloha_grid_random_test.cc'
