@@ -8,6 +8,8 @@
 #define AQUA_SIM_MAC_ROUTING_ALOHA_H
 
 #include "aqua-sim-mac.h"
+#include <math.h>
+
 
 namespace ns3 {
 
@@ -37,6 +39,12 @@ public:
   // Send down frame using broadcast-mac backoff logic
   bool SendDownFrame (Ptr<Packet>);
 
+  // Send down frame TODO: fix the order of send downs
+  bool Send(Ptr<Packet>);
+
+  // Resend frame from the send_buffer
+  void ResendFrame();
+
   // Select next_hop_node for given destination, return its address
   AquaSimAddress SelectNextHop (AquaSimAddress dst_addr);
 
@@ -58,6 +66,8 @@ public:
   // Calculate the distance between the src and dst nodes, based on Tx and Rx powers
   // For that, a very rough approximation model of Rayleigh is used, if frequency = 25 kHz!
   double CalculateDistance (double tx_power, double rx_power);
+  // Get more precise distance from mobility model (while more accurate TX/RX formula hasn't been figured out)
+  double CalculateDistance (AquaSimAddress dst_addr);
 
   // Calculate Tx power given the distance and expected Rx_threshold
   // The calculation is based on Rayleight model, used in the aqua-sim-propagation module:
@@ -97,6 +107,9 @@ private:
   // Store the packets in send_queue until path discovery procedure is successful or failed, in a format:
   // {dst_addr: packet_queue}
   std::map<AquaSimAddress, std::queue<Ptr<Packet>>> m_send_queue;
+
+  // Store the packets which have been already triggered to be sent, but failed due to device not idle status
+  std::queue<Ptr<Packet>> m_send_buffer;
 
   // Store reward expiration timestamps, needed when the expire event is triggered by the scheduler,
   // or when the reward message is received,
@@ -138,14 +151,10 @@ private:
   double m_max_range = 150; // meters
 
   // Expected Rx_threshold, in Watts
-  double m_rx_threshold = 0.0005;
+  double m_rx_threshold = 3.27 * pow(10, -8);
 
   // Max tx_power
   double m_max_tx_power = 20; // Watts
-
-  //
-  // Store packets to be sent
-  std::queue<Ptr<Packet>> m_send_buffer;
 
   // Current RTS/CTS state
   MacRoutingStatus m_status;
@@ -163,6 +172,9 @@ private:
   // Time duration of the DATA_TX / RX states before transition to IDLE
   // I.e., how much data should be transmitted wihtin a single RTS/CTS handshake
   Time m_data_timeout = Seconds(10);
+
+  // Distance calculation error, meters
+  double m_dist_error = 0.1;
 
 };  // class AquaSimRoutingMacAloha
 

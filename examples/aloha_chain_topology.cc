@@ -26,7 +26,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("Mac_routing_chain_topology");
+NS_LOG_COMPONENT_DEFINE("ALOHA_chain_topology");
 
 int
 main (int argc, char *argv[])
@@ -79,8 +79,8 @@ main (int argc, char *argv[])
   asHelper.SetChannel(channel.Create());
 //  asHelper.SetMac("ns3::AquaSimBroadcastMac");
 
-  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
-		  "max_tx_power", DoubleValue(max_tx_power));
+  asHelper.SetMac("ns3::AquaSimAloha", "AckOn", IntegerValue(0), "MinBackoff", DoubleValue(0.0),
+		  "MaxBackoff", DoubleValue(1.5));
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 

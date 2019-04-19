@@ -53,7 +53,8 @@ AquaSimEnergyModel::GetTypeId()
       MakeDoubleAccessor (&AquaSimEnergyModel::m_txP),
       MakeDoubleChecker<double>())
     .AddAttribute ("InitialEnergy", "Starting energy",
-      DoubleValue (10000.0),
+//      DoubleValue (10000.0),
+	  DoubleValue (100000000.0),
       MakeDoubleAccessor (&AquaSimEnergyModel::SetInitialEnergy),
       MakeDoubleChecker<double>())
     .AddAttribute ("IdlePower", "Idle power: idle power consumption (W). Default is 0.0 (0.008W)",
@@ -66,7 +67,8 @@ AquaSimEnergyModel::GetTypeId()
 
 AquaSimEnergyModel::AquaSimEnergyModel() :
     m_energy(10000.0),
-    m_initialEnergy(10000.0),
+//    m_initialEnergy(10000.0),
+	m_initialEnergy(100000000.0),
     m_rxP(0.75),
     m_txP(2.0),
     m_idleP(0.008),

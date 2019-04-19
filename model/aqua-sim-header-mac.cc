@@ -891,7 +891,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	if (m_ptype == 0)
 	{
 		// ptype + header_id + hop_count + reward + ... [in bytes]
-		return 6 + 4 + 4 + 2 + 4 + 16;
+		return 6 + 4 + 4 + 2 + 4 + 16 + 4;
 	}
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
@@ -921,7 +921,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	// Direct Reward Message
 	if (m_ptype == 7)
 	{
-		return 29;
+		return 29 + 4;
 	}
 
 	// This should not happen
@@ -945,6 +945,7 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  // Add tx/rx parameters
 	  i.WriteU64 ((uint64_t)(m_tx_power));
 	  i.WriteU64 ((uint64_t)(m_rx_power));
+	  i.WriteU32 ((uint32_t)(m_next_hop_distance));
   }
   if (m_ptype == 1)
   {
@@ -1024,6 +1025,7 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  // Add tx/rx parameters
 	  i.WriteU64 ((uint64_t)(m_tx_power));
 	  i.WriteU64 ((uint64_t)(m_rx_power));
+	  i.WriteU32 ((uint32_t)(m_next_hop_distance));
   }
 
 
@@ -1050,6 +1052,8 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  // Get tx/rx parameters
 	  m_tx_power = i.ReadU64();
 	  m_rx_power = i.ReadU64();
+	  // Carry next_hop_distance
+	  m_next_hop_distance = i.ReadU32();
   }
   if (m_ptype == 1)
   {
@@ -1137,6 +1141,8 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  // Get tx/rx parameters
 	  m_tx_power = i.ReadU64();
 	  m_rx_power = i.ReadU64();
+	  // Carry next_hop_distance
+	  m_next_hop_distance = i.ReadU32();
   }
 
   return GetSerializedSize();
@@ -1263,6 +1269,12 @@ MacRoutingHeader::SetDirectDistance(double direct_distance)
 	m_direct_distance = direct_distance * m_multiplier_32;
 }
 
+void
+MacRoutingHeader::SetNextHopDistance(double next_hop_distance)
+{
+	m_next_hop_distance = next_hop_distance * m_multiplier_32;
+}
+
 double
 MacRoutingHeader::GetRxPower()
 {
@@ -1285,4 +1297,10 @@ double
 MacRoutingHeader::GetDirectDistance()
 {
 	return m_direct_distance / m_multiplier_32;
+}
+
+double
+MacRoutingHeader::GetNextHopDistance()
+{
+	return m_next_hop_distance / m_multiplier_32;
 }

@@ -384,11 +384,13 @@ public:
   void SetTxPower (double tx_power);
   void SetOptimalMetric (double optimal_metric);
   void SetDirectDistance (double direct_distance);
+  void SetNextHopDistance (double m_next_hop_dustance);
 
   double GetRxPower ();
   double GetTxPower ();
   double GetOptimalMetric ();
   double GetDirectDistance ();
+  double GetNextHopDistance ();
 
   //inherited methods
   virtual uint32_t GetSerializedSize(void) const;
@@ -423,6 +425,9 @@ private:
 
   // Direct distance from source to destination
   uint32_t m_direct_distance = 0;
+
+  // Distance to next hop
+  uint32_t m_next_hop_distance = 0;
 
   // Not used when the optimal metric is constant for all possible desstinations, i.e.
   // when calculated from max_range value

@@ -323,8 +323,6 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
   AquaSimPacketStamp pstamp;
 //  std::cout << "PT VALUE:" << m_pT << "\n";
   pstamp.SetPt(m_pT);
-  // EXPERIMENTAL !!! Consider the tx power in EM()
-  EM()->SetTxPower(m_pT);
 
   pstamp.SetPr(m_lambda);
   pstamp.SetFreq(m_freq);
@@ -341,6 +339,7 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
   p->RemoveHeader(mach);
 
   // Set Tx power to pstamp for mac_routing dev
+  // Set the current transmission range as well, to separate the collision domains
   if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
   {
 	  MacRoutingHeader mac_routing_h;
@@ -348,11 +347,26 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 	  p->RemoveHeader(mac_routing_h);
 
 	  pstamp.SetPt(mac_routing_h.GetTxPower());
+//	  std::cout << "TX POWER VALUE:" << mac_routing_h.GetTxPower() << "\n";
+
+	  // Skip INIT messages
+	  if (mac_routing_h.GetPType() != 4)
+	  {
+//		  std::cout << "TX RANGE: " << mac_routing_h.GetNextHopDistance() << "\n";
+		  pstamp.SetTxRange(mac_routing_h.GetNextHopDistance());
+	  }
+
 	  // Experimental !!!
+//	  EM()->SetTxPower(mac_routing_h.GetTxPower() - 100);
 	  EM()->SetTxPower(mac_routing_h.GetTxPower());
 	  ///
 
 	  p->AddHeader(mac_routing_h);
+  }
+  else
+  {
+	  // EXPERIMENTAL !!! Consider the tx power in EM()
+	  EM()->SetTxPower(m_pT);
   }
 
   p->AddHeader(mach);
@@ -446,13 +460,16 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     return NULL;
   }
 
+  // DISABLE THIS FOR PURE MAC TESTS
   /**
   * any packet error set here result from that a packet
   * cannot be detected by the modem, so modem's status doesn't receive
   */
-  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
-				      || GetNetDevice()->GetTransmissionStatus() == SEND
-              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
+//				      || GetNetDevice()->GetTransmissionStatus() == SEND
+//              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//				      || pstamp.GetPr() < m_RXThresh)
+  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
 				      || pstamp.GetPr() < m_RXThresh)
   {
     /**
@@ -476,6 +493,22 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
   if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
     GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
   }
+
+	// Get recv power for mac_routing dev
+	if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+	{
+		MacRoutingHeader mac_routing_h;
+
+		p->RemoveHeader(mach);
+		p->RemoveHeader(mac_routing_h);
+
+		mac_routing_h.SetRxPower(pstamp.GetPr());
+
+		p->AddHeader(mac_routing_h);
+		p->AddHeader(mach);
+
+	}
+
 
   p->AddHeader(asHeader);
   //p->AddHeader(pstamp); no longer needed.
@@ -595,6 +628,9 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   if (GetNetDevice()->GetTransmissionStatus() == SLEEP || (NULL != EM() && EM()->GetEnergy() <= 0))
   {
     NS_LOG_DEBUG("Unable to reach phy layer (sleep/disable)");
+    NS_LOG_DEBUG("DEV TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus());
+    NS_LOG_DEBUG("EM STATUS: " << EM());
+    NS_LOG_DEBUG("EM GET ENERGY STATUS: " << EM()->GetEnergy());
     p = 0;
     return false;
   }
@@ -602,6 +638,7 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   switch (GetNetDevice()->GetTransmissionStatus()){
   case SEND:
     UpdateTxEnergy(asHeader.GetTxTime());
+//    std::cout << "TX TIME: " << asHeader.GetTxTime() << "\n";
     break;
   case NIDLE:
     /*

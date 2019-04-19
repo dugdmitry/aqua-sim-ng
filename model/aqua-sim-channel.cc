@@ -162,6 +162,7 @@ AquaSimChannel::SendUp (Ptr<Packet> p, Ptr<AquaSimPhy> tifp)
   std::vector<PktRecvUnit> * recvUnits = m_prop->ReceivedCopies(sender, p, m_deviceList);
 
   allPktCounter++;  //Debug... remove
+//  std::cout << "SENT UNITS COUNTER: " << recvUnits->size() << "\n";
   for (std::vector<PktRecvUnit>::size_type i = 0; i < recvUnits->size(); i++) {
     allRecvPktCounter++;  //Debug .. remove
     if (sender == (*recvUnits)[i].recver)
@@ -182,6 +183,7 @@ AquaSimChannel::SendUp (Ptr<Packet> p, Ptr<AquaSimPhy> tifp)
     pDelay = GetPropDelay(sender, (*recvUnits)[i].recver);
     //pDelay = (*recvUnits)[i].pDelay;
     rifp = recver->GetPhy();
+//    std::cout << "RECV UNIT ADDR: " << recver->GetAddress() << "\n";
     //rifp = recver->ifhead().lh_first;
 
     AquaSimPacketStamp pstamp;

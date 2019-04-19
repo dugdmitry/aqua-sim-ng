@@ -1,7 +1,7 @@
 /*
- * mac_routing_test.c
+ * mac_routing_aloha_tests
  *
- *  Created on: Nov 24, 2018
+ *  Created on: Feb 27, 2019
  *      Author: dmitry
  */
 
@@ -10,37 +10,45 @@
 #include "ns3/network-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/aqua-sim-ng-module.h"
+#include "ns3/aqua-sim-propagation.h"
 #include "ns3/applications-module.h"
 #include "ns3/log.h"
 #include "ns3/callback.h"
 
+#include <random>
+#include <math.h>
 
 /*
- * Mac_routing chain topology test between two edge nodes:
+ * MAC-Routing NxN grid random destination topology tests
  *
- * S<---><--->N1<---><--->N2<---><--->Nn<---><--->D
- *
- * <---> - transmission range
  *
  */
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("Mac_routing_chain_topology");
+NS_LOG_COMPONENT_DEFINE("MAC_routing_aloha_grid_random_test");
 
 int
 main (int argc, char *argv[])
 {
   double simStop = 100; //seconds
-  int intermediate_nodes = 1;
+//  double simStop = 2; //seconds
 
+  int n_nodes = 10;
+//  int sinks = 1;
+//  uint32_t m_dataRate = 80000; // bps
   double m_dataRate = 80000; // bps
+
   double m_packetSize = 50; // bytes
-  double range = 150;	// meters
-  double distance = 150; // meters
+  double range = 1500;	// meters
 
   // Poisson traffic parameters
   double lambda = 0.1;
+
+  // Grid parameters
+  int max_x = 100; // meters
+//  int max_y = 10000; // meters
+//  double distance = 10; // meters
 
   // Max Tx power
   double max_tx_power = 20; // Watts
@@ -52,38 +60,51 @@ main (int argc, char *argv[])
   cmd.AddValue ("simStop", "Length of simulation", simStop);
   cmd.AddValue ("lambda", "Packet arrival rate", lambda);
   cmd.AddValue ("packet_size", "Packet size", m_packetSize);
+  cmd.AddValue ("grid_size", "Grid size, in km", max_x);
+  cmd.AddValue ("n_nodes", "Number of nodes", n_nodes);
   cmd.AddValue ("range", "Transmission range", range);
-  cmd.AddValue ("distance", "Distance between nodes", distance);
-  cmd.AddValue ("nodes", "Number of intermediate nodes", intermediate_nodes);
   cmd.AddValue ("tx_power", "Max transmission power", max_tx_power);
+
 
   cmd.Parse(argc,argv);
 
-  // Total number of nodes, including source and destination
-  int nodes = intermediate_nodes + 2;
+  // Random integer selection-related parameters
+  std::random_device rd;     // only used once to initialise (seed) engine
+  std::mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
+  std::uniform_int_distribution<int> uni_distance(0, max_x); // guaranteed unbiased
+  std::uniform_int_distribution<int> uni_nodes(0, n_nodes - 1); // guaranteed unbiased
 
 
   std::cout << "-----------Initializing simulation-----------\n";
 
   NodeContainer nodesCon;
-  nodesCon.Create(nodes);
+//  NodeContainer sinksCon;
+  nodesCon.Create(n_nodes);
+//  sinksCon.Create(sinks);
 
   PacketSocketHelper socketHelper;
   socketHelper.Install(nodesCon);
+//  socketHelper.Install(sinksCon);
 
   //establish layers using helper's pre-build settings
   AquaSimChannelHelper channel = AquaSimChannelHelper::Default();
-  // Set propagation to RangePropagation to control the transmission range
   channel.SetPropagation("ns3::AquaSimRangePropagation");
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
-//  asHelper.SetMac("ns3::AquaSimBroadcastMac");
 
   asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
 		  "max_tx_power", DoubleValue(max_tx_power));
 
+//    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
+//    asHelper.SetMac("ns3::AquaSimBroadcastMac");
+//  asHelper.SetMac("ns3::AquaSimAloha");
+
+
+
+
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 
+  // Define the Tx power
   asHelper.SetPhy("ns3::AquaSimPhyCmn", "PT", DoubleValue(max_tx_power));
 
   /*
@@ -99,61 +120,52 @@ main (int argc, char *argv[])
   for (NodeContainer::Iterator i = nodesCon.Begin(); i != nodesCon.End(); i++)
     {
       Ptr<AquaSimNetDevice> newDevice = CreateObject<AquaSimNetDevice>();
+
+      // Select random (x, y) position
+      boundry.x = uni_distance(rng);
+      boundry.y = uni_distance(rng);
+
       position->Add(boundry);
       devices.Add(asHelper.Create(*i, newDevice));
 
 //      NS_LOG_DEBUG("Node:" << newDevice->GetAddress() << " position(x):" << boundry.x);
-      std::cout << "Node:" << newDevice->GetAddress() << " position(x):" << boundry.x << "\n";
-//      boundry.x += 100;
-      boundry.x += distance;
+//      std::cout << "Node:" << newDevice->GetAddress() << " position(x):" << boundry.x <<
+//    		  " position(y):" << boundry.y << "\n";
       newDevice->GetPhy()->SetTransRange(range);
-//      newDevice->GetPhy()->SetBandwidth(3000);
+//      newDevice->GetPhy()->SetTxPower(0.001);
     }
 
   mobility.SetPositionAllocator(position);
   mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
   mobility.Install(nodesCon);
+//  mobility.Install(sinksCon);
 
-  PacketSocketAddress socket;
-  socket.SetAllDevices();
-  socket.SetPhysicalAddress (devices.Get(nodes-1)->GetAddress()); // Destination node is the last node in the container
-  socket.SetProtocol (0);
-
-  OnOffHelper app ("ns3::PacketSocketFactory", Address (socket));
-
+  int j = 0;
   char duration_on[300];
   char duration_off[300];
 
-  sprintf(duration_on, "ns3::ExponentialRandomVariable[Mean=%f]", (m_packetSize * 8) / m_dataRate);
-  sprintf(duration_off, "ns3::ExponentialRandomVariable[Mean=%f]", 1 / lambda);
+  // Set application to each node
+  for (NodeContainer::Iterator i = nodesCon.Begin(); i != nodesCon.End(); i++)
+  {
+	  OnOffHelper app ("ns3::PacketSocketFactory", n_nodes);
 
-//  app.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.001]"));
-//  app.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.999]"));
-  app.SetAttribute ("OnTime", StringValue (duration_on));
-  app.SetAttribute ("OffTime", StringValue (duration_off));
+	  sprintf(duration_on, "ns3::ExponentialRandomVariable[Mean=%f]", (m_packetSize * 8) / m_dataRate);
+	  sprintf(duration_off, "ns3::ExponentialRandomVariable[Mean=%f]", 1 / lambda);
+//	  std::cout << "Duration On: " << duration_on << "\n";
+//	  std::cout << "Duration Off: " << duration_off << "\n";
+	  app.SetAttribute ("OnTime", StringValue (duration_on));
+	  app.SetAttribute ("OffTime", StringValue (duration_off));
 
-  app.SetAttribute ("DataRate", DataRateValue (m_dataRate));
-  app.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
+	  app.SetAttribute ("DataRate", DataRateValue (m_dataRate));
+	  app.SetAttribute ("PacketSize", UintegerValue (m_packetSize));
 
-  ApplicationContainer apps = app.Install (nodesCon.Get(0)); // Source node is the first one in the container
-  apps.Start (Seconds (0.5));
-  apps.Stop (Seconds (simStop + 1));
+	  ApplicationContainer apps = app.Install (nodesCon.Get(j));
 
-//  Ptr<Node> dest_node = nodesCon.Get(nodes + 1);
-//  TypeId psfid = TypeId::LookupByName ("ns3::PacketSocketFactory");
-//
-//  Ptr<Socket> sinkSocket = Socket::CreateSocket (dest_node, psfid);
-//  sinkSocket->Bind (socket);
+	  apps.Start (Seconds (0.5));
+	  apps.Stop (Seconds (simStop + 1));
 
-/*
- *  For channel trace driven simulation
- */
-/*
-  AquaSimTraceReader tReader;
-  tReader.SetChannel(asHelper.GetChannel());
-  if (tReader.ReadFile("channelTrace.txt")) NS_LOG_DEBUG("Trace Reader Success");
-  else NS_LOG_DEBUG("Trace Reader Failure");
-*/
+	  j++;
+  }
 
   Packet::EnablePrinting (); //for debugging purposes
   std::cout << "-----------Running Simulation-----------\n";
