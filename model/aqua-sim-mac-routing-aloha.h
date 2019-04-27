@@ -34,7 +34,8 @@ public:
   void DropPacket (Ptr<Packet>);
 
   // Forward packet / frame from upper layers / network, keep track of the sender node
-  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr, int hop_count, double reward);
+//  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr, int hop_count, double reward);
+  bool ForwardPacket (Ptr<Packet>, AquaSimAddress sender_addr);
 
   // Send down frame using broadcast-mac backoff logic
   bool SendDownFrame (Ptr<Packet>);
@@ -46,7 +47,8 @@ public:
   void ResendFrame();
 
   // Select next_hop_node for given destination, return its address
-  AquaSimAddress SelectNextHop (AquaSimAddress dst_addr);
+//  AquaSimAddress SelectNextHop (AquaSimAddress dst_addr);
+  AquaSimAddress SelectNextHop (AquaSimAddress src_addr, AquaSimAddress dst_addr);
 
   // Filter duplicate broadcast service messages
   bool FilterDuplicateInit (AquaSimAddress src_addr);
@@ -55,10 +57,12 @@ public:
   double GenerateReward (AquaSimAddress dst_addr);
 
   // Update path weight in forwarding table by corresponding reward value
-  bool UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
+//  bool UpdateWeight(AquaSimAddress address, AquaSimAddress next_hop_addr, double reward);
+  bool UpdateWeight(AquaSimAddress src_addr, AquaSimAddress dst_addr, AquaSimAddress next_hop_addr, double reward);
 
-  // Calculate weights based on given distances
-  double CalculateWeight (double distance);
+  // Calculate rewards based on given distances
+//  double CalculateWeight (double distance);
+  double CalculateReward (double optimal_metric, double direct_distance, double current_distance);
 
   // Calculate and update distance list
   void UpdateDistance (double tx_power, double rx, AquaSimAddress dst_addr);
@@ -73,6 +77,11 @@ public:
   // The calculation is based on Rayleight model, used in the aqua-sim-propagation module:
   // Rx = Tx / (d^k * alpha^(d/1000)), k = 2, alpha = 4, (f = 25kHz)
   double CalculateTxPower (double distance);
+
+  // Calculate the number of relays that can minimize the energy consumption
+  // The return value is the ideal number of relays
+//  int CalculateHopCount(double distance, int packet_size, int link_speed, double p_rx, double p_tx_max);
+  uint8_t CalculateHopCount(double distance, int packet_size, double p_tx_max);
 
   // Calculate optimal metric based on the given distance between src and dst
   double CalculateOptimalMetric (double distance);
@@ -102,7 +111,9 @@ private:
   Ptr<UniformRandomVariable> m_rand;
 
   // Forwarding table to select next-hop nodes, in a format: {dst_addr : [next_hop_addr: weight]}
-  std::map<AquaSimAddress, std::map<AquaSimAddress, double>> m_forwarding_table;
+//  std::map<AquaSimAddress, std::map<AquaSimAddress, double>> m_forwarding_table;
+  // Map of (src, dst) pair and the corresponding weight
+  std::map<std::map<AquaSimAddress, AquaSimAddress>, std::map<AquaSimAddress, double>> m_forwarding_table;
 
   // Store the packets in send_queue until path discovery procedure is successful or failed, in a format:
   // {dst_addr: packet_queue}
@@ -144,9 +155,6 @@ private:
   // Maximum hop-count for packets (to avoid loops)
   int m_max_hop_count = 10;
 
-  // Optimal 1-hop distance (optimal metric)
-  double m_optimal_metric = 0;
-
   // Max transmission range
   double m_max_range = 150; // meters
 
@@ -170,11 +178,17 @@ private:
 
   // Data transmission time interval
   // Time duration of the DATA_TX / RX states before transition to IDLE
-  // I.e., how much data should be transmitted wihtin a single RTS/CTS handshake
+  // I.e., how much data should be transmitted within a single RTS/CTS handshake
   Time m_data_timeout = Seconds(10);
 
   // Distance calculation error, meters
   double m_dist_error = 0.1;
+
+  // Data packet size from upper layers
+  int m_packet_size = 50;
+
+  // Header id counter
+  uint32_t m_header_id = 0;
 
 };  // class AquaSimRoutingMacAloha
 

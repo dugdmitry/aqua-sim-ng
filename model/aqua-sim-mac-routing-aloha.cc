@@ -24,6 +24,52 @@ NS_OBJECT_ENSURE_REGISTERED(AquaSimRoutingMacAloha);
 Adaptive forwarding (routing) MAC for underwater sensor networks
 ====================================================================== */
 
+/*
+ * This function calculates the number of relays that minimize the energy consumption
+ *
+ * Arguments
+ * distance:            the distance between the source and destination (km)
+ * packet_size:         the size of the packet (bytes)
+ * link_speed:          the physical layer speed (bps)
+ * p_rx:                the power consumption for receiving and processing (watts)
+ * p_tx_max:            the maximum transmission power (watts)
+ *
+ * Return value
+ * n:                   the optimal number of relays
+ */
+
+//int AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, int link_speed, double p_rx, double p_tx_max)
+uint8_t
+AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, double p_tx_max)
+{
+  double freq = 25.0; // Frequency, in kHz
+  double k = 2.0; // Spreading factor
+  int link_speed = 10000; // bps
+  double p_rx = 0.82; // Watts
+  double t_rx = packet_size * 8.0 / (link_speed*1.0); // Transmission delay
+  double p_rx_min = 5.4764*pow(10,(-8.0)); // Minimal signal strength for successful reception
+  double C1 = (0.011*pow(freq,2.0)/(1.0+pow(freq,2))+4.4*pow(freq,2.0)/(4100.0+freq)+2.75/100000.0*pow(freq,2.0)+0.0003)*(1.0*distance);
+  double C2 = p_rx_min*pow(distance*1000,k)*8.0*packet_size/(1.0*link_speed);
+  double C3 = t_rx * p_rx;
+  double Em = 0.0; // The energy consumption with relays
+  double Em_last = 0.0; // A temporary variable to store the previous calculated energy consumption
+  int n = 0, loop_count = 10;
+
+  Em_last = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
+  while (n++ < loop_count) {
+    Em = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
+    if (Em < Em_last) {
+      Em_last = Em;
+    }
+    else {
+      n--;
+      break;
+    }
+  }
+  return n;
+}
+
+
 AquaSimRoutingMacAloha::AquaSimRoutingMacAloha()
 {
   m_rand = CreateObject<UniformRandomVariable> ();
@@ -47,10 +93,11 @@ AquaSimRoutingMacAloha::GetTypeId()
 		DoubleValue(20),
 		MakeDoubleAccessor (&AquaSimRoutingMacAloha::m_max_tx_power),
 		MakeDoubleChecker<double> ())
-	  .AddAttribute("optimal_metric", "Optimal Distance metric, m",
-		DoubleValue(50),
-		MakeDoubleAccessor (&AquaSimRoutingMacAloha::m_optimal_metric),
-		MakeDoubleChecker<double> ())
+	  .AddAttribute("packet_size", "Packet size from upper layers",
+		IntegerValue(50),
+		MakeIntegerAccessor (&AquaSimRoutingMacAloha::m_packet_size),
+		MakeIntegerChecker<int> ())
+
      ;
   return tid;
 }
@@ -107,13 +154,14 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 			ash.SetSize(ash.GetSize() - m_packetHeaderSize);
 		}
 
-		// Filter out the packets if their hop_count exceeds the maximum (to avoid loops)
-		if (mac_routing_h.GetHopCount() > m_max_hop_count)
-		{
-			NS_LOG_DEBUG("Warning! The Hop Count exceeds the maximum!");
-			pkt = 0;
-			return false;
-		}
+//		// TODO: delete this, since the packets should be sent directly to destination, if hop_number exceeds the threshold
+//		// Filter out the packets if their hop_count exceeds the maximum (to avoid loops)
+//		if (mac_routing_h.GetHopCount() > m_max_hop_count)
+//		{
+//			NS_LOG_DEBUG("Warning! The Hop Count exceeds the maximum!");
+//			pkt = 0;
+//			return false;
+//		}
 
 		// DATA PACKET TYPE
 		////////////////////
@@ -126,12 +174,12 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 			// The DATA packet must be destined to the node
 			if (dst == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
-				// Update the distance to the source node, if this information is missing in the local distances table.
-				// This might happen when INIT messages are lost.
-				if (m_distances.count(mac_routing_h.GetSrcAddr()) == 0)
-				{
-					m_distances.insert(std::make_pair(mac_routing_h.GetSrcAddr(), mac_routing_h.GetNextHopDistance() - m_dist_error));
-				}
+//				// Update the distance to the source node, if this information is missing in the local distances table.
+//				// This might happen when INIT messages are lost.
+//				if (m_distances.count(mac_routing_h.GetSrcAddr()) == 0)
+//				{
+//					m_distances.insert(std::make_pair(mac_routing_h.GetSrcAddr(), mac_routing_h.GetNextHopDistance() - m_dist_error));
+//				}
 
 				// If dst_addr is its own, send up
 				// If not, forward packet further
@@ -166,10 +214,11 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 //							mac_routing_h.GetRxPower()))); // Send direct reward message considering the distance
 
 					reward_h.SetTxPower(CalculateTxPower(CalculateDistance(mac_routing_h.GetSrcAddr()))); // Send direct reward message considering the distance
-
+					// Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
+					reward_h.SetNextHopDistance(CalculateDistance(mac_routing_h.GetSrcAddr()) + m_dist_error);
 
 					// Set reward value
-					reward = CalculateWeight(mac_routing_h.GetDirectDistance() - 0);
+					reward = CalculateReward(mac_routing_h.GetOptimalDistance(), mac_routing_h.GetDirectDistance(), m_distances.find(mach.GetDA())->second);
 //					std::cout << "DIRECT DISTANCE: " << mac_routing_h.GetDirectDistance() << "\n";
 					// Since the node is the destination itself, the residual distance is zero
 //					std::cout << "RESIDUAL DISTANCE: " << 0 << "\n";
@@ -188,16 +237,21 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 					// Otherwise, insert the reward and forward the packet further
 					// Generate reward from the given optimal metric and delta-distance to destination
 					// I.e. how much the total distance has been reduced comparing to the optimal one
-					reward = CalculateWeight(mac_routing_h.GetDirectDistance() -
-							m_distances.find(mach.GetDA())->second);
+					reward = CalculateReward(mac_routing_h.GetOptimalDistance(), mac_routing_h.GetDirectDistance(), m_distances.find(mach.GetDA())->second);
 
 //					std::cout << "DIRECT DISTANCE: " << mac_routing_h.GetDirectDistance() << "\n";
 //					std::cout << "RESIDUAL DISTANCE: " << m_distances.find(mach.GetDA())->second << "\n";
 
+					// Increment hop count, set reward for the sender node
+					mac_routing_h.IncrementHopCount();
+					mac_routing_h.SetReward(reward);
+
+					pkt->AddHeader(mac_routing_h);
 					pkt->AddHeader(mach);
 					pkt->AddHeader(ash);
 					// Increment hop_count, set reward
-					ForwardPacket(pkt, mac_routing_h.GetSrcAddr(), mac_routing_h.GetHopCount() + 1, reward);
+//					ForwardPacket(pkt, mac_routing_h.GetSrcAddr(), mac_routing_h.GetHopCount() + 1, reward);
+					ForwardPacket(pkt, mac_routing_h.GetSrcAddr());
 				}
 				return true;
 			}
@@ -212,7 +266,8 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 				if (reward != 0)
 				{
 					// Update forwarding table
-					UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), reward);
+//					UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), reward);
+					UpdateWeight(mach.GetSA(), mach.GetDA(), mac_routing_h.GetSrcAddr(), reward);
 				}
 
 			}
@@ -227,7 +282,8 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 			// Otherwise, discard
 			if (mac_routing_h.GetDstAddr() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
 			{
-				UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), mac_routing_h.GetReward());
+//				UpdateWeight(mach.GetDA(), mac_routing_h.GetSrcAddr(), mac_routing_h.GetReward());
+				UpdateWeight(mach.GetSA(), mach.GetDA(), mac_routing_h.GetSrcAddr(), mac_routing_h.GetReward());
 			}
 			return true;
 		}
@@ -264,6 +320,8 @@ AquaSimRoutingMacAloha::TxProcess(Ptr<Packet> pkt)
 
 	AquaSimHeader ash;
 	MacHeader mach;
+	MacRoutingHeader mac_routing_h;
+
 	pkt->RemoveHeader(ash);
 
 	mach.SetDA(ash.GetDAddr());
@@ -276,10 +334,21 @@ AquaSimRoutingMacAloha::TxProcess(Ptr<Packet> pkt)
 
 	ash.SetTxTime(GetTxTime(pkt));
 
+	// Set initial reward and hop_count values
+	mac_routing_h.SetHopCount(1);
+	mac_routing_h.SetReward(0);
+	// Set packet type (DATA type), ID
+	mac_routing_h.SetPType(0);
+	mac_routing_h.SetId(m_header_id);
+	m_header_id++;
+
+
+	pkt->AddHeader(mac_routing_h);
 	pkt->AddHeader(mach);
 	pkt->AddHeader(ash);
 
-	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()), 0, 0); // hop_count = 0, reward = 0
+//	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()), 0, 0); // hop_count = 0, reward = 0
+	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
   return true;  //may be bug due to Sleep/default cases
 }
@@ -299,9 +368,9 @@ AquaSimRoutingMacAloha::SendDownFrame (Ptr<Packet> pkt)
 	  // Set mac type to mac header
 	  mach.SetDemuxPType(MacHeader::UWPTYPE_MAC_ROUTING);
 
-	  // Insert the next_hop distance to each sent packet. Get next hop distance from the distances list
-	  // Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
-	  mac_routing_h.SetNextHopDistance(m_distances.at(mac_routing_h.GetDstAddr()) + m_dist_error);
+//	  // Insert the next_hop distance to each sent packet. Get next hop distance from the distances list
+//	  // Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
+//	  mac_routing_h.SetNextHopDistance(m_distances.at(mac_routing_h.GetDstAddr()) + m_dist_error);
 
 	  ash.SetTimeStamp(Simulator::Now());
       ash.SetDirection(AquaSimHeader::DOWN);
@@ -381,7 +450,8 @@ AquaSimRoutingMacAloha::Send (Ptr<Packet> pkt)
 
 // Forward packet / frame coming from the application or the network (DATA type)
 bool
-AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int hop_count, double reward)
+//AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr, int hop_count, double reward)
+AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr)
 {
 	AquaSimHeader ash;
 	MacHeader mach;
@@ -389,6 +459,7 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 
 	p->RemoveHeader(ash);
 	p->RemoveHeader(mach);
+	p->RemoveHeader(mac_routing_h);
 
 	// Store destination address as integer
 	AquaSimAddress dst_addr = mach.GetDA();
@@ -396,59 +467,85 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 	// Reset the direction if the packet is forwarded by intermediate node
 	ash.SetDirection(AquaSimHeader::DOWN);
 
+	// Calculate distances to all destinations
 	if (m_distances.count(dst_addr) == 0)
 	{
-		m_distances.insert(std::make_pair(dst_addr, CalculateDistance(dst_addr)));
+	    for (uint32_t i=1; i <= m_device->GetChannel()->GetNDevices(); i++)
+	    {
+	    	if (i != (m_device->GetNode()->GetId() + 1))
+	    	{
+//	    		std::cout << "ADDR: " << AquaSimAddress::ConvertFrom(m_device->GetChannel()->GetDevice(i-1)->GetAddress()) << " " << m_device->GetChannel()->GetDevice(i-1)->GetAddress() << "\n";
+	    		m_distances.insert(std::make_pair(AquaSimAddress::ConvertFrom(m_device->GetChannel()->GetDevice(i-1)->GetAddress()),
+	    				CalculateDistance(AquaSimAddress::ConvertFrom(m_device->GetChannel()->GetDevice(i-1)->GetAddress()))));
+	    	}
+	    }
+
+//		m_distances.insert(std::make_pair(dst_addr, CalculateDistance(dst_addr)));
 	}
 
-		//TODO://		// Store the optimal distance metric for the current packet towards given destination
-//		double optimal_metric = CalculateOptimalMetric(m_distances.find(dst_addr)->second);
+	// If it is a source of initial packet, set the optimal_distance and max_hops_number values
+	if (mach.GetSA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+	{
+		// Set the direct distance from this node to the destination
+		mac_routing_h.SetDirectDistance(m_distances.find(dst_addr)->second);
+		int max_hops_number = CalculateHopCount(mac_routing_h.GetDirectDistance(), m_packet_size, m_max_tx_power);
+		uint32_t optimal_distance = mac_routing_h.GetDirectDistance() / (max_hops_number + 1);
+
+//		std::cout << "MAX HOPS NUMBER: " << max_hops_number << "\n";
+//		std::cout << "OPTIMAL DISTANCE: " << optimal_distance << "\n";
+
+		mac_routing_h.SetOptimalDistance(optimal_distance);
+		mac_routing_h.SetMaxHopsNumber(max_hops_number);
+	}
 
 		// Update the forwarding table according to the known distances
-		if (m_forwarding_table.count(dst_addr) == 0)
+//		if (m_forwarding_table.count(dst_addr) == 0)
+		std::map<AquaSimAddress, AquaSimAddress> src_dst_map;
+		src_dst_map.insert(std::make_pair(mach.GetSA(), dst_addr));
+
+//		if (m_forwarding_table.count(dst_addr) == 0)
+		if (m_forwarding_table.count(src_dst_map) == 0)
 		{
 			// Create new entry with initial weight
 			std::map<AquaSimAddress, double> m; // {next_hop : weight}
 
 			// For each possible destination / distance - calculate the initial weight based on the optimal distance metric
+//			std::cout << "DISTANCES SIZE: " << m_distances.size() << "\n";
 			for (auto const& x : m_distances)
 			{
-				m.insert(std::make_pair(x.first, CalculateWeight(x.second)));
-		//		std::cout << "Creating new table entry with REWARD: " << reward / 2 << "\n";
-				NS_LOG_DEBUG("Creating new table entry with WEIGHT: " << CalculateWeight(x.second));
+				// Calculate initial weight (reward)
+				m.insert(std::make_pair(x.first, CalculateReward(mac_routing_h.GetOptimalDistance(), x.second, 0)));
+//				std::cout << "Creating new table entry with REWARD: " << reward / 2 << "\n";
+				NS_LOG_DEBUG("Creating new table entry with WEIGHT: " << CalculateReward(mac_routing_h.GetOptimalDistance(), x.second, 0));
 			}
 
-			m_forwarding_table.insert(std::make_pair(dst_addr, m));
+//			m_forwarding_table.insert(std::make_pair(dst_addr, m));
+			m_forwarding_table.insert(std::make_pair(src_dst_map, m));
 //			std::cout << "TABLE SIZE: " << m_forwarding_table.size() << "\n";
 		}
 
 		// Select next_hop neighbor and send down the packet
 		// If the hop_count exceeds the threshold, then send the packet directly to the destination
 		AquaSimAddress next_hop_addr;
-		if (hop_count >= m_hop_count_threshold)
+		if (mac_routing_h.GetHopCount() > mac_routing_h.GetMaxHopsNumber())
 		{
 //			std::cout << "HOP COUNT EXCEEDED THRESHOLD. Sending to DST.\n";
 			next_hop_addr = dst_addr;
 		}
 		else
 		{
-			next_hop_addr = SelectNextHop(dst_addr);
+			next_hop_addr = SelectNextHop(mach.GetSA(), dst_addr);
 		}
 
-		// Create mac_routing_header (DATA type)
-		mac_routing_h.SetPType(0);
-		mac_routing_h.SetId(0);
+		// Set next hop parameters - update src/dst fields
 		mac_routing_h.SetSrcAddr(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 //		std::cout << "Next hop addr: " << next_hop_addr << "\n";
 		mac_routing_h.SetDstAddr(next_hop_addr);
-		mac_routing_h.SetHopCount(hop_count);
+//		mac_routing_h.SetHopCount(hop_count);
 
 		// Set the direct distance from this node to the destination
 		mac_routing_h.SetDirectDistance(m_distances.find(dst_addr)->second);
 //		std::cout << "DIRECT DISTANCE FROM LIST: " << m_distances.find(dst_addr)->second << "\n";
-
-		// Set reward
-		mac_routing_h.SetReward(reward);
 
 		// Set sender address for the reward
 		mac_routing_h.SetSenderAddr(sender_addr);
@@ -463,10 +560,13 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 		ash.SetDirection(AquaSimHeader::DOWN);
 
 		// Set tx power for the given packet. The tx_power must be enough to reach the initial sender node.
+		// Insert the next_hop distance to each sent packet
 		if (AquaSimAddress::ConvertFrom(m_device->GetAddress()) == sender_addr)
 		{
 			// Set tx_power sufficient to reach the destination
 			mac_routing_h.SetTxPower(CalculateTxPower(m_distances.find(next_hop_addr)->second));
+			// Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
+			mac_routing_h.SetNextHopDistance(m_distances.find(next_hop_addr)->second + m_dist_error);
 		}
 		else
 		{
@@ -475,11 +575,15 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 			{
 				// Set tx_power to reach the sender
 				mac_routing_h.SetTxPower(CalculateTxPower(m_distances.find(sender_addr)->second));
+				// Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
+				mac_routing_h.SetNextHopDistance(m_distances.find(sender_addr)->second + m_dist_error);
 			}
 			else
 			{
 				// Set tx_power sufficient to reach the destination
 				mac_routing_h.SetTxPower(CalculateTxPower(m_distances.find(next_hop_addr)->second));
+				// Add some "guard distance", just to mitigate the initial error in distance calculation from Tx/Rx
+				mac_routing_h.SetNextHopDistance(m_distances.find(next_hop_addr)->second + m_dist_error);
 			}
 		}
 
@@ -488,8 +592,6 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 		p->AddHeader(ash);
 
 		// Send Frame
-		NS_LOG_DEBUG("TX power data: " << mac_routing_h.GetTxPower());
-
 		SendDownFrame(p);
 
 		return true;
@@ -532,14 +634,19 @@ AquaSimRoutingMacAloha::ForwardPacket(Ptr<Packet> p, AquaSimAddress sender_addr,
 
 // ONLY GREEDY FOR NOW
 AquaSimAddress
-AquaSimRoutingMacAloha::SelectNextHop(AquaSimAddress dst_addr)
+AquaSimRoutingMacAloha::SelectNextHop(AquaSimAddress src_addr, AquaSimAddress dst_addr)
 {
 	// Forwarding table has the following format: {dst_adddr: {next_hop1 : w1, ... next_hopN : wN}}
 	// For the given dst_addr, select a next_hop_addr with max weight (greedy method for now)
 	double max_value = 0;
 	AquaSimAddress next_hop_addr = 0;
+
+	std::map<AquaSimAddress, AquaSimAddress> src_dst_map;
+	src_dst_map.insert(std::make_pair(src_addr, dst_addr));
+
 	// Iterate through the weights to find the max value
-	for (auto const& x : m_forwarding_table.find(dst_addr)->second)
+//	for (auto const& x : m_forwarding_table.find(dst_addr)->second)
+	for (auto const& x : m_forwarding_table.find(src_dst_map)->second)
 	{
 		if (max_value <= x.second)
 		{
@@ -560,12 +667,16 @@ AquaSimRoutingMacAloha::SelectNextHop(AquaSimAddress dst_addr)
 
 // Update weight in forwarding table
 bool
-AquaSimRoutingMacAloha::UpdateWeight(AquaSimAddress dst_addr, AquaSimAddress next_hop_addr, double reward)
+AquaSimRoutingMacAloha::UpdateWeight(AquaSimAddress src_addr, AquaSimAddress dst_addr, AquaSimAddress next_hop_addr, double reward)
 {
 //	std::cout << "UPDATED REWARD: " << reward << "\n";
 	NS_LOG_DEBUG("UPDATED REWARD: " << reward);
 
-	if (m_forwarding_table.count(dst_addr) == 0)
+	std::map<AquaSimAddress, AquaSimAddress> src_dst_map;
+	src_dst_map.insert(std::make_pair(src_addr, dst_addr));
+
+//	if (m_forwarding_table.count(dst_addr) == 0)
+	if (m_forwarding_table.count(src_dst_map) == 0)
 	{
 		// Create new entry with initial weight according to given reward
 		std::map<AquaSimAddress, double> m; // {next_hop : weight}
@@ -575,60 +686,66 @@ AquaSimRoutingMacAloha::UpdateWeight(AquaSimAddress dst_addr, AquaSimAddress nex
 //		std::cout << "Creating new table entry with REWARD: " << reward << "\n";
 //		NS_LOG_DEBUG("Creating new table entry with REWARD: " << reward / 2);
 
-		m_forwarding_table.insert(std::make_pair(dst_addr, m));
+//		m_forwarding_table.insert(std::make_pair(dst_addr, m));
+		m_forwarding_table.insert(std::make_pair(src_dst_map, m));
 	}
 	else
 	{
 		// Check if the next_hop_entry exist, if not - create one and return
-		if (m_forwarding_table.find(dst_addr)->second.count(next_hop_addr) == 0)
+//		if (m_forwarding_table.find(dst_addr)->second.count(next_hop_addr) == 0)
+		if (m_forwarding_table.find(src_dst_map)->second.count(next_hop_addr) == 0)
 		{
 //			m_forwarding_table.find(dst_addr)->second.insert(std::make_pair(next_hop_addr, reward / 2));
-			m_forwarding_table.find(dst_addr)->second.insert(std::make_pair(next_hop_addr, reward));
+			m_forwarding_table.find(src_dst_map)->second.insert(std::make_pair(next_hop_addr, reward));
+			return 0;
 		}
 
-		double current_weight = m_forwarding_table.find(dst_addr)->second.find(next_hop_addr)->second;
+//		double current_weight = m_forwarding_table.find(dst_addr)->second.find(next_hop_addr)->second;
+		double current_weight = m_forwarding_table.find(src_dst_map)->second.find(next_hop_addr)->second;
 //		NS_LOG_DEBUG("CURRENT WEIGHT: " << current_weight << " Node Address: " << AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 //		NS_LOG_DEBUG("REWARD: " << reward);
 //		NS_LOG_DEBUG("TABLE SIZE: " << m_forwarding_table.size());
 
-		// If the current weight is too small (due to lack of rewards), just remove the entry from the table
-		if ((current_weight + reward) <= 0)
-		{
-			NS_LOG_DEBUG("Warning! Weight dropped below the threshold! Deleting table entry!");
-
-			m_forwarding_table.find(dst_addr)->second.erase(next_hop_addr);
-			if (m_forwarding_table.find(dst_addr)->second.size() == 0)
-			{
-				m_forwarding_table.erase(dst_addr);
-			}
-			return 0;
-
-		}
+//		// If the current weight is too small (due to lack of rewards), just remove the entry from the table
+//		if ((current_weight + reward) <= 0)
+//		{
+//			NS_LOG_DEBUG("Warning! Weight dropped below the threshold! Deleting table entry!");
+//
+//			m_forwarding_table.find(dst_addr)->second.erase(next_hop_addr);
+//			if (m_forwarding_table.find(dst_addr)->second.size() == 0)
+//			{
+//				m_forwarding_table.erase(dst_addr);
+//			}
+//			return 0;
+//
+//		}
 
 		// Calculate sample average and update the weight
-		m_forwarding_table.find(dst_addr)->second.at(next_hop_addr) = (current_weight + reward) / 2;
+//		m_forwarding_table.find(dst_addr)->second.at(next_hop_addr) = (current_weight + reward) / 2;
+		m_forwarding_table.find(src_dst_map)->second.at(next_hop_addr) = (current_weight + reward) / 2;
 	}
 	return 0;
 }
 
 double
-AquaSimRoutingMacAloha::CalculateWeight(double distance)
+AquaSimRoutingMacAloha::CalculateReward(double optimal_distance, double direct_distance, double current_distance)
 {
 	// Calculate weight based on the difference between optimal_distance and D(Tx,Rx)
-	if (distance <= 0)
+//	std::cout << "DISTANCE DIFFERENCE: " << (direct_distance - current_distance) << "\n";
+	if ((direct_distance - current_distance) <= 0)
 	{
 		// Return minimum possible reward
 		return m_min_reward;
 	}
 
 	// TODO: Think out how to give more weight to a closer node, then to a more distant one.
-	if (m_optimal_metric <= distance)
+	if (optimal_distance <= (direct_distance - current_distance))
 	{
-		return 100 * (m_optimal_metric / distance);
+		return 100 * (optimal_distance / (direct_distance - current_distance));
 	}
 	else
 	{
-		return 100 * (distance / m_optimal_metric);
+		return 100 * ((direct_distance - current_distance) / optimal_distance);
 	}
 }
 
@@ -694,8 +811,8 @@ double
 AquaSimRoutingMacAloha::CalculateDistance(AquaSimAddress dst_addr)
 {
 	double dist = 0;
-	// Get the distance from the mobility model
 
+	// Get the distance from the mobility model
     Ptr<Object> sObject = m_device->GetNode();
     Ptr<MobilityModel> senderModel = sObject->GetObject<MobilityModel> ();
 

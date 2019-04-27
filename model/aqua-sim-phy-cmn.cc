@@ -360,7 +360,6 @@ AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 //	  EM()->SetTxPower(mac_routing_h.GetTxPower() - 100);
 	  EM()->SetTxPower(mac_routing_h.GetTxPower());
 	  ///
-
 	  p->AddHeader(mac_routing_h);
   }
   else

@@ -365,6 +365,7 @@ public:
   int GetPType();
   void SetId(uint32_t m_header_id);
   void SetHopCount(uint8_t m_hop_count);
+  void IncrementHopCount();
 
   void SetSrcAddr (AquaSimAddress src_addr);
   void SetDstAddr (AquaSimAddress dst_addr);
@@ -378,19 +379,20 @@ public:
   double GetReward ();
 
   int GetHopCount ();
-  void IncrementHopCount ();
 
   void SetRxPower (double rx_power);
   void SetTxPower (double tx_power);
-  void SetOptimalMetric (double optimal_metric);
   void SetDirectDistance (double direct_distance);
-  void SetNextHopDistance (double m_next_hop_dustance);
+  void SetNextHopDistance (double next_hop_distance);
+  void SetOptimalDistance (double m_optimal_distance);
+  void SetMaxHopsNumber (uint8_t m_max_hops_number);
 
   double GetRxPower ();
   double GetTxPower ();
-  double GetOptimalMetric ();
   double GetDirectDistance ();
   double GetNextHopDistance ();
+  double GetOptimalDistance ();
+  uint8_t GetMaxHopsNumber ();
 
   //inherited methods
   virtual uint32_t GetSerializedSize(void) const;
@@ -426,13 +428,14 @@ private:
   // Direct distance from source to destination
   uint32_t m_direct_distance = 0;
 
-  // Distance to next hop
+  // Next hop distance, needed for the propagation model
   uint32_t m_next_hop_distance = 0;
 
-  // Not used when the optimal metric is constant for all possible desstinations, i.e.
-  // when calculated from max_range value
-//  // Optimal metric for power efficient path (to compare it on receiving side and generate the award accordingly)
-  uint32_t m_optimal_metric = 0;
+  // Optimal distance, calculated by the source
+  uint32_t m_optimal_distance = 0;
+
+  // Max number of hops, calculated by the source
+  uint8_t m_max_hops_number = 0;
 
   // Store a multipler to convert from double to uint32/64 and back
   double m_multiplier_64 = 10000000000000;

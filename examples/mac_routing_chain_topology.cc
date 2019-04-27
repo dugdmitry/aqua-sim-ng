@@ -79,8 +79,8 @@ main (int argc, char *argv[])
   asHelper.SetChannel(channel.Create());
 //  asHelper.SetMac("ns3::AquaSimBroadcastMac");
 
-  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
-		  "max_tx_power", DoubleValue(max_tx_power));
+  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "max_tx_power", DoubleValue(max_tx_power),
+		  "packet_size", IntegerValue(m_packetSize));
 
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 
@@ -158,6 +158,16 @@ main (int argc, char *argv[])
   Packet::EnablePrinting (); //for debugging purposes
   std::cout << "-----------Running Simulation-----------\n";
   Simulator::Stop(Seconds(simStop));
+
+  // Enable ASCII traces
+  std::string asciiTraceFile = "xmac-trace-chain.asc";
+  std::ofstream ascii (asciiTraceFile.c_str());
+  if (!ascii.is_open()) {
+    NS_FATAL_ERROR("Could not open trace file.");
+  }
+  asHelper.EnableAsciiAll(ascii);
+
+
   Simulator::Run();
 
   asHelper.GetChannel()->PrintCounters();

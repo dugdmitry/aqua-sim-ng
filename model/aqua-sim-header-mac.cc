@@ -891,7 +891,7 @@ MacRoutingHeader::GetSerializedSize(void) const
 	if (m_ptype == 0)
 	{
 		// ptype + header_id + hop_count + reward + ... [in bytes]
-		return 6 + 4 + 4 + 2 + 4 + 16 + 4;
+		return 45;
 	}
 	// RREQ / RREP
 	if ((m_ptype == 1) || (m_ptype == 2))
@@ -946,6 +946,8 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU64 ((uint64_t)(m_tx_power));
 	  i.WriteU64 ((uint64_t)(m_rx_power));
 	  i.WriteU32 ((uint32_t)(m_next_hop_distance));
+	  i.WriteU32 ((uint32_t)(m_optimal_distance));
+	  i.WriteU8 ((uint8_t)(m_max_hops_number));
   }
   if (m_ptype == 1)
   {
@@ -1028,7 +1030,6 @@ MacRoutingHeader::Serialize (Buffer::Iterator start) const
 	  i.WriteU32 ((uint32_t)(m_next_hop_distance));
   }
 
-
 }
 
 uint32_t
@@ -1052,8 +1053,10 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 	  // Get tx/rx parameters
 	  m_tx_power = i.ReadU64();
 	  m_rx_power = i.ReadU64();
-	  // Carry next_hop_distance
 	  m_next_hop_distance = i.ReadU32();
+	  // Carry optimal_distance value
+	  m_optimal_distance = i.ReadU32();
+	  m_max_hops_number = i.ReadU8();
   }
   if (m_ptype == 1)
   {
@@ -1151,7 +1154,38 @@ MacRoutingHeader::Deserialize (Buffer::Iterator start)
 void
 MacRoutingHeader::Print (std::ostream &os) const
 {
-  os << "MacRouting Header: \n";
+  os << "MacRouting Header: ";
+
+  if (m_ptype == 0)
+  {
+	  os << "PType=" << int(m_ptype) << " ";
+	  os << "Header_id=" << m_header_id << " ";
+	  os << "Hop_count=" << int(m_hop_count) << " ";
+	  os << "Reward=" << m_reward / m_multiplier_32 << " ";
+	  os << "Sender_addr=" << m_sender_addr << " ";
+	  os << "Src_addr=" << m_src_addr << " ";
+	  os << "Dst_addr=" << m_dst_addr << " ";
+	  os << "Direct_distance=" << m_direct_distance / m_multiplier_32 << " ";
+	  os << "Tx_power=" << m_tx_power / m_multiplier_64 << " ";
+	  os << "Rx_power=" << m_rx_power / m_multiplier_64 << " ";
+	  os << "Next_hop_distance=" << m_next_hop_distance / m_multiplier_32 << " ";
+	  os << "Optimal_distance=" << m_optimal_distance / m_multiplier_32 << " ";
+	  os << "Max_hops_number=" << int(m_max_hops_number) << " ";
+  }
+
+  if (m_ptype == 7)
+  {
+	  os << "PType=" << int(m_ptype) << " ";
+	  os << "Header_id=" << m_header_id << " ";
+	  os << "Src_addr=" << m_src_addr << " ";
+	  os << "Dst_addr=" << m_dst_addr << " ";
+	  os << "Reward=" << m_reward / m_multiplier_32 << " ";
+	  os << "Tx_power=" << m_tx_power / m_multiplier_64 << " ";
+	  os << "Rx_power=" << m_rx_power / m_multiplier_64 << " ";
+	  os << "Next_hop_distance=" << m_next_hop_distance / m_multiplier_32 << " ";
+  }
+
+  os << "\n";
 }
 
 TypeId
@@ -1258,21 +1292,27 @@ MacRoutingHeader::SetTxPower(double tx_power)
 }
 
 void
-MacRoutingHeader::SetOptimalMetric(double optimal_metric)
-{
-	m_optimal_metric = optimal_metric * m_multiplier_32;
-}
-
-void
 MacRoutingHeader::SetDirectDistance(double direct_distance)
 {
 	m_direct_distance = direct_distance * m_multiplier_32;
 }
 
 void
+MacRoutingHeader::SetOptimalDistance(double optimal_distance)
+{
+	m_optimal_distance = optimal_distance * m_multiplier_32;
+}
+
+void
 MacRoutingHeader::SetNextHopDistance(double next_hop_distance)
 {
 	m_next_hop_distance = next_hop_distance * m_multiplier_32;
+}
+
+void
+MacRoutingHeader::SetMaxHopsNumber(uint8_t max_hops_number)
+{
+	m_max_hops_number = max_hops_number;
 }
 
 double
@@ -1288,19 +1328,25 @@ MacRoutingHeader::GetTxPower()
 }
 
 double
-MacRoutingHeader::GetOptimalMetric()
-{
-	return m_optimal_metric / m_multiplier_32;
-}
-
-double
 MacRoutingHeader::GetDirectDistance()
 {
 	return m_direct_distance / m_multiplier_32;
 }
 
 double
+MacRoutingHeader::GetOptimalDistance()
+{
+	return m_optimal_distance / m_multiplier_32;
+}
+
+double
 MacRoutingHeader::GetNextHopDistance()
 {
 	return m_next_hop_distance / m_multiplier_32;
+}
+
+uint8_t
+MacRoutingHeader::GetMaxHopsNumber()
+{
+	return m_max_hops_number;
 }

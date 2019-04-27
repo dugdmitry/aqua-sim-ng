@@ -92,20 +92,18 @@ main (int argc, char *argv[])
   AquaSimHelper asHelper = AquaSimHelper::Default();
   asHelper.SetChannel(channel.Create());
 
-  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "optimal_metric", DoubleValue(range/4),
-		  "max_tx_power", DoubleValue(max_tx_power));
+  asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "max_tx_power", DoubleValue(max_tx_power),
+  		  "packet_size", IntegerValue(m_packetSize));
 
 //    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
 //    asHelper.SetMac("ns3::AquaSimBroadcastMac");
 //  asHelper.SetMac("ns3::AquaSimAloha");
 
-
-
-
   asHelper.SetRouting("ns3::AquaSimRoutingDummy");
 
   // Define the Tx power
   asHelper.SetPhy("ns3::AquaSimPhyCmn", "PT", DoubleValue(max_tx_power));
+
 
   /*
    * Set up mobility model for nodes and sinks
@@ -170,6 +168,17 @@ main (int argc, char *argv[])
   Packet::EnablePrinting (); //for debugging purposes
   std::cout << "-----------Running Simulation-----------\n";
   Simulator::Stop(Seconds(simStop));
+
+  // Enable ASCII trace files
+  Packet::EnablePrinting ();  //for debugging purposes
+  std::string asciiTraceFile = "xmac-trace.asc";
+  std::ofstream ascii (asciiTraceFile.c_str());
+  if (!ascii.is_open()) {
+    NS_FATAL_ERROR("Could not open trace file.");
+  }
+  asHelper.EnableAsciiAll(ascii);
+
+
   Simulator::Run();
 
   asHelper.GetChannel()->PrintCounters();
