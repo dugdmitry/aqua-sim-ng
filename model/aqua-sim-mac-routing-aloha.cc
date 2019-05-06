@@ -48,8 +48,8 @@ AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, doub
   double p_rx = 0.82; // Watts
   double t_rx = packet_size * 8.0 / (link_speed*1.0); // Transmission delay
   double p_rx_min = 5.4764*pow(10,(-8.0)); // Minimal signal strength for successful reception
-  double C1 = (0.011*pow(freq,2.0)/(1.0+pow(freq,2))+4.4*pow(freq,2.0)/(4100.0+freq)+2.75/100000.0*pow(freq,2.0)+0.0003)*(1.0*distance);
-  double C2 = p_rx_min*pow(distance*1000,k)*8.0*packet_size/(1.0*link_speed);
+  double C1 = (0.011*pow(freq,2.0)/(1.0+pow(freq,2))+4.4*pow(freq,2.0)/(4100.0+freq)+2.75/100000.0*pow(freq,2.0)+0.0003)*(distance/1000.0);
+  double C2 = p_rx_min*pow(distance,k)*8.0*packet_size/(1.0*link_speed);
   double C3 = t_rx * p_rx;
   double Em = 0.0; // The energy consumption with relays
   double Em_last = 0.0; // A temporary variable to store the previous calculated energy consumption
@@ -66,7 +66,10 @@ AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, doub
       break;
     }
   }
-  return n;
+//  std::cout << "OPTIMAL HOP COUNT: " << n << "\n";
+  // Fix the number of hops for the experiments
+//  return n;
+  return 0;
 }
 
 
