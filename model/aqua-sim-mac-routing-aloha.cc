@@ -68,8 +68,7 @@ AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, doub
   }
 //  std::cout << "OPTIMAL HOP COUNT: " << n << "\n";
   // Fix the number of hops for the experiments
-//  return n;
-  return 0;
+ return n;
 }
 
 

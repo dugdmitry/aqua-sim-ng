@@ -477,6 +477,8 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     */
     NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
     asHeader.SetErrorFlag(true);
+    // Set the collision flag to true as well
+    m_collision_flag = true;
   }
   else {
       GetNetDevice()->SetTransmissionStatus(RECV);
@@ -511,6 +513,15 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
 
   p->AddHeader(asHeader);
   //p->AddHeader(pstamp); no longer needed.
+
+  // If the packet is not marked as collided (error flag is false), then delay the packet on the TxTime, to make sure that no other packets cause
+  // collisions to this packet. If some packets appear within the TxTime delay interval of the given packet, then mark it as collided as well.
+  if (asHeader.GetErrorFlag() == false)
+  {
+    m_collision_flag = false;
+    Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimPhyCmn::CollisionCheck, this, p->Copy());
+    return NULL;
+  }
 
   return p;
 }
@@ -911,6 +922,29 @@ double AquaSimPhyCmn::GetTransRange()
 {
   return m_transRange;
 }
+
+// Check collision status of the first received packet when net_device was in IDLE state
+void 
+AquaSimPhyCmn::CollisionCheck(Ptr<Packet> packet)
+{
+  AquaSimHeader asHeader;
+  packet->RemoveHeader(asHeader);
+  // If some packets were receved during the TxTime of the original packet, then mark it as collided as well
+  //put the packet into the incoming queue  
+  asHeader.SetErrorFlag(m_collision_flag);
+  // Put the net device in RECV state immediately, if the net device was receiving packets after the original one, within the TxTime delay
+  if (m_collision_flag == true)
+  {
+    GetNetDevice()->SetTransmissionStatus(RECV);
+    // Schedule the transition to IDLE state as well. Otherwise, the net device will stuck in RECV state forever.
+    Simulator::Schedule(CalcTxTime(asHeader.GetSize()), &AquaSimNetDevice::SetTransmissionStatus, GetNetDevice(), NIDLE);
+  }
+
+  packet->AddHeader(asHeader);
+
+  m_sC->AddNewPacket(packet);
+}
+
 
 // Method for setting Pt - transmission power in Watts
 void
