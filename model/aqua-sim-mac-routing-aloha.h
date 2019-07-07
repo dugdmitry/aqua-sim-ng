@@ -83,8 +83,11 @@ public:
 //  int CalculateHopCount(double distance, int packet_size, int link_speed, double p_rx, double p_tx_max);
   uint8_t CalculateHopCount(double distance, int packet_size, double p_tx_max);
 
-  // Calculate optimal metric based on the given distance between src and dst
-  double CalculateOptimalMetric (double distance);
+  // Check if the destination node is within the maximum transmission range of the source node or not
+  bool IsWithinMaximumRange (AquaSimAddress dst_addr);
+
+  // Popolate the in_range node list
+  void DiscoverInRangeNodes ();
 
   // to process the outgoing packet
   virtual bool TxProcess (Ptr<Packet>);
@@ -100,12 +103,7 @@ protected:
   virtual void DoDispose();
   // Expiration handlers. Not used for now.
   void RewardExpirationHandler(std::map<AquaSimAddress, AquaSimAddress> dst_to_next_hop_map);
-  void InitExpirationHandler(AquaSimAddress dst_address);
 
-  // RTS / CTS state timeout handler
-  void StateTimeoutHandler (Time timeout);
-  // Set current state to IDLE
-  void SetToIdle ();
 
 private:
   Ptr<UniformRandomVariable> m_rand;
@@ -156,19 +154,17 @@ private:
   int m_max_hop_count = 10;
 
   // Max transmission range
-  double m_max_range = 150; // meters
+  double m_max_range = 1500; // meters
 
   // Expected Rx_threshold, in Watts
-  double m_rx_threshold = 3.27 * pow(10, -8);
+  // double m_rx_threshold = 3.27 * pow(10, -8);
+  // RX_threshold calculated for TX power = 60 Watts at distance of 1250 meters
+  // double m_rx_threshold = 6.62568 * pow(10, -6);
+  // RX_threshold calculated for TX power = 60 Watts at distance of 1500 meters
+  double m_rx_threshold = 3.23778 * pow(10, -6);
 
   // Max tx_power
   double m_max_tx_power = 20; // Watts
-
-  // Current RTS/CTS state
-  MacRoutingStatus m_status;
-
-  // Current state timeout
-  Time m_state_timeout = Seconds(0);
 
   // Hop count threshold - send the DATA packet directly to the destination, if the hop count value exceeds the threshold
   int m_hop_count_threshold = 3;
@@ -189,6 +185,20 @@ private:
 
   // Header id counter
   uint32_t m_header_id = 0;
+
+  // Store number of nodes in a network
+  uint16_t m_nnodes = 0;
+
+  // Store a list of destination address, which are within maximum transmission range
+  std::vector<AquaSimAddress> m_inrange_addresses;
+
+  // Also, make sure that the given node has at least one neighbor in the maximum transmission range (
+  //  (for the edge-case, when the max tx range is too short)
+  bool m_isInRange = true;
+
+  // Fix the number of intermediate nodes (for currernt experiments!!!)
+  uint32_t m_nintermediate_nodes = 0;
+
 
 };  // class AquaSimRoutingMacAloha
 

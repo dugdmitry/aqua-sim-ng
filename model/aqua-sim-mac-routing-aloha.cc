@@ -42,33 +42,36 @@ Adaptive forwarding (routing) MAC for underwater sensor networks
 uint8_t
 AquaSimRoutingMacAloha::CalculateHopCount(double distance, int packet_size, double p_tx_max)
 {
-  double freq = 25.0; // Frequency, in kHz
-  double k = 2.0; // Spreading factor
-  int link_speed = 10000; // bps
-  double p_rx = 0.82; // Watts
-  double t_rx = packet_size * 8.0 / (link_speed*1.0); // Transmission delay
-  double p_rx_min = 5.4764*pow(10,(-8.0)); // Minimal signal strength for successful reception
-  double C1 = (0.011*pow(freq,2.0)/(1.0+pow(freq,2))+4.4*pow(freq,2.0)/(4100.0+freq)+2.75/100000.0*pow(freq,2.0)+0.0003)*(distance/1000.0);
-  double C2 = p_rx_min*pow(distance,k)*8.0*packet_size/(1.0*link_speed);
-  double C3 = t_rx * p_rx;
-  double Em = 0.0; // The energy consumption with relays
-  double Em_last = 0.0; // A temporary variable to store the previous calculated energy consumption
-  int n = 0, loop_count = 10;
+//   double freq = 25.0; // Frequency, in kHz
+//   double k = 2.0; // Spreading factor
+//   int link_speed = 10000; // bps
+//   double p_rx = 0.82; // Watts
+//   double t_rx = packet_size * 8.0 / (link_speed*1.0); // Transmission delay
+//   double p_rx_min = 5.4764*pow(10,(-8.0)); // Minimal signal strength for successful reception
+//   double C1 = (0.011*pow(freq,2.0)/(1.0+pow(freq,2))+4.4*pow(freq,2.0)/(4100.0+freq)+2.75/100000.0*pow(freq,2.0)+0.0003)*(distance/1000.0);
+//   double C2 = p_rx_min*pow(distance,k)*8.0*packet_size/(1.0*link_speed);
+//   double C3 = t_rx * p_rx;
+//   double Em = 0.0; // The energy consumption with relays
+//   double Em_last = 0.0; // A temporary variable to store the previous calculated energy consumption
+//   int n = 0, loop_count = 10;
 
-  Em_last = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
-  while (n++ < loop_count) {
-    Em = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
-    if (Em < Em_last) {
-      Em_last = Em;
-    }
-    else {
-      n--;
-      break;
-    }
-  }
-//  std::cout << "OPTIMAL HOP COUNT: " << n << "\n";
-  // Fix the number of hops for the experiments
- return n;
+//   Em_last = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
+//   while (n++ < loop_count) {
+//     Em = C2*pow(10.0,C1/(n+1.0))/pow((n+1.0),(k-1.0))+n*C3;
+//     if (Em < Em_last) {
+//       Em_last = Em;
+//     }
+//     else {
+//       n--;
+//       break;
+//     }
+//   }
+// //  std::cout << "OPTIMAL HOP COUNT: " << n << "\n";
+//   // Fix the number of hops for the experiments
+//  return n;
+
+// Fix the number of hops for the experiments !!!
+return m_nintermediate_nodes;
 }
 
 
@@ -77,8 +80,8 @@ AquaSimRoutingMacAloha::AquaSimRoutingMacAloha()
   m_rand = CreateObject<UniformRandomVariable> ();
   m_max_range = 150;
   m_max_tx_power = 20; // Watts
-
-  m_status = IDLE;
+  m_isInRange = true;
+  m_nintermediate_nodes = 0;
 }
 
 TypeId
@@ -98,6 +101,11 @@ AquaSimRoutingMacAloha::GetTypeId()
 	  .AddAttribute("packet_size", "Packet size from upper layers",
 		IntegerValue(50),
 		MakeIntegerAccessor (&AquaSimRoutingMacAloha::m_packet_size),
+		MakeIntegerChecker<int> ())
+	// Pass the number of intermediate hops explicitly (for some experiments only !!!)
+	  .AddAttribute("intermediate_nodes", "Number of intermediate nodes for each packet transmission",
+		IntegerValue(0), // 0 - direct transmission to destination
+		MakeIntegerAccessor (&AquaSimRoutingMacAloha::m_nintermediate_nodes),
 		MakeIntegerChecker<int> ())
 
      ;
@@ -139,7 +147,6 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 	if (ash.GetErrorFlag())
 	{
 		NS_LOG_DEBUG("RoutingMac:RecvProcess: received corrupt packet.");
-//		std::cout << "RoutingMac:RecvProcess: received corrupt packet.\n";
 		pkt=0;
 		return false;
 	}
@@ -155,15 +162,6 @@ AquaSimRoutingMacAloha::RecvProcess (Ptr<Packet> pkt)
 		{
 			ash.SetSize(ash.GetSize() - m_packetHeaderSize);
 		}
-
-//		// TODO: delete this, since the packets should be sent directly to destination, if hop_number exceeds the threshold
-//		// Filter out the packets if their hop_count exceeds the maximum (to avoid loops)
-//		if (mac_routing_h.GetHopCount() > m_max_hop_count)
-//		{
-//			NS_LOG_DEBUG("Warning! The Hop Count exceeds the maximum!");
-//			pkt = 0;
-//			return false;
-//		}
 
 		// DATA PACKET TYPE
 		////////////////////
@@ -318,7 +316,7 @@ different versions.
 bool
 AquaSimRoutingMacAloha::TxProcess(Ptr<Packet> pkt)
 {
-	//  NS_LOG_FUNCTION(this << pkt);
+	NS_LOG_FUNCTION(this << pkt);
 
 	AquaSimHeader ash;
 	MacHeader mach;
@@ -326,7 +324,35 @@ AquaSimRoutingMacAloha::TxProcess(Ptr<Packet> pkt)
 
 	pkt->RemoveHeader(ash);
 
-	mach.SetDA(ash.GetDAddr());
+	AquaSimAddress dst_addr = ash.GetDAddr();
+
+	// Populate the list of neighbors within max tx range
+	if (m_inrange_addresses.empty() && m_isInRange)
+	{
+		DiscoverInRangeNodes();
+	}
+
+	// Drop packet if node has no neighbors
+	if (!m_isInRange)
+	{
+		// std::cout << "THE NODE HAS NO NEIGHBORS!!! DROPPING PACKET!!!\n";
+		return false;
+	}
+
+	// Check if the destination is within maximum transmission range or not
+	// If the destination is outside the maximum transmission range, then randomly select any other destination, which is within it
+	if (!IsWithinMaximumRange(dst_addr))
+	{
+		uint32_t address_index = m_rand->GetInteger(0, m_inrange_addresses.size() - 1);
+		// std::cout << "SELECTED ADDRESS INDEX: " << address_index << "\n";
+		// std::cout << "SELECTING THE OTHER DST: " << m_inrange_addresses.at(address_index) << "\n";
+		dst_addr = m_inrange_addresses.at(address_index);
+	}
+
+
+	// mach.SetDA(ash.GetDAddr());
+	ash.SetDAddr(dst_addr);
+	mach.SetDA(dst_addr);
 	mach.SetSA(AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
 	if( m_packetSize != 0 )
@@ -344,12 +370,10 @@ AquaSimRoutingMacAloha::TxProcess(Ptr<Packet> pkt)
 	mac_routing_h.SetId(m_header_id);
 	m_header_id++;
 
-
 	pkt->AddHeader(mac_routing_h);
 	pkt->AddHeader(mach);
 	pkt->AddHeader(ash);
 
-//	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()), 0, 0); // hop_count = 0, reward = 0
 	ForwardPacket(pkt, AquaSimAddress::ConvertFrom(m_device->GetAddress()));
 
   return true;  //may be bug due to Sleep/default cases
@@ -432,8 +456,7 @@ AquaSimRoutingMacAloha::Send (Ptr<Packet> pkt)
 
       SendDown(pkt);
 
-//      Simulator::Schedule(txtime + Seconds(0.01), &AquaSimRoutingMacAloha::StatusProcess, this);
-      Simulator::Schedule(txtime + Seconds(0.1), &AquaSimRoutingMacAloha::ResendFrame, this);
+    //   Simulator::Schedule(txtime + Seconds(0.1), &AquaSimRoutingMacAloha::ResendFrame, this);
 
       break;
 		}
@@ -447,6 +470,8 @@ AquaSimRoutingMacAloha::Send (Ptr<Packet> pkt)
       NS_LOG_INFO("SendPkt: node " << m_device->GetNode() << " send data too fast");
 	pkt=0;
   }
+  Simulator::Schedule(txtime + Seconds(0.1), &AquaSimRoutingMacAloha::ResendFrame, this);
+//   Simulator::Schedule(txtime * m_rand->GetInteger(1, 5), &AquaSimRoutingMacAloha::ResendFrame, this);
   return true;
 }
 
@@ -772,16 +797,6 @@ AquaSimRoutingMacAloha::CalculateReward(double optimal_distance, double direct_d
 //	m_reward_expirations.erase(dst_to_next_hop_map);
 //}
 
-void
-AquaSimRoutingMacAloha::SetToIdle()
-{
-	// Change state to IDLE, since the current state timeout hasn't been changed, therefore, no other timeouts were introduced
-	if (m_state_timeout <= Simulator::Now())
-	{
-//		std::cout << "SETTING TO IDLE: " << Simulator::Now() << "\n";
-		m_status = IDLE;
-	}
-}
 
 void
 AquaSimRoutingMacAloha::UpdateDistance(double tx_power, double rx_power, AquaSimAddress dst_addr)
@@ -834,7 +849,7 @@ AquaSimRoutingMacAloha::CalculateTxPower(double d)
 	  // Calculate Tx power given the distance and expected Rx_threshold
 	  // The calculation is based on Rayleight model, used in the aqua-sim-propagation module:
 	  // Rx = Tx / (d^k * alpha^(d/1000)), k = 2, alpha = 4.07831, (f = 25kHz)
-//	double tx_power = pow(d, 2) * pow(4.07831, (d / 1000)) * (m_rx_threshold + 0.0003); // 0.0003 to adjust the model
+	// double tx_power = pow(d, 2) * pow(4.07831, (d / 1000)) * (m_rx_threshold + 0.0003); // 0.0003 to adjust the model
 	double tx_power = pow(d, 2) * pow(4.07831, (d / 1000)) * m_rx_threshold + 0.0001;
 	NS_LOG_DEBUG("GIVEN DISTANCE: " << d);
 	NS_LOG_DEBUG("CALCULATED TX POWER: " << tx_power);
@@ -849,13 +864,41 @@ AquaSimRoutingMacAloha::CalculateTxPower(double d)
 	}
 }
 
-double
-AquaSimRoutingMacAloha::CalculateOptimalMetric(double distance)
+bool
+AquaSimRoutingMacAloha::IsWithinMaximumRange(AquaSimAddress dst_addr)
 {
-	// Optimal metric is a sub-distance of the given distance
-	// This metric should be calculated considering max tx_power, rx_power threshold, processing power
-	// Currently, use the constant number of intermediate nodes
-	return distance / (3 + 1); // 3 intermediate nodes => 4 chunks of sub-distances
+	if (dst_addr == AquaSimAddress::ConvertFrom(m_device->GetAddress()))
+	{
+		return false;
+	}
+	if (CalculateDistance(dst_addr) > m_max_range)
+	{
+		// std::cout << "THE DST IS OUTSIDE TX RANGE: " << CalculateDistance(dst_addr) << "\n";
+		return false;
+	}
+	else
+	{
+		return true;
+	}	
+}
+
+void
+AquaSimRoutingMacAloha::DiscoverInRangeNodes()
+{
+	m_isInRange = false;
+	for (uint32_t i=1; i <= m_device->GetChannel()->GetNDevices(); i++)
+	{
+		if (i != (m_device->GetNode()->GetId() + 1))
+		{
+			AquaSimAddress address = AquaSimAddress::ConvertFrom(m_device->GetChannel()->GetDevice(i-1)->GetAddress());
+			if (IsWithinMaximumRange(address))
+			{
+				// std::cout << "ADDRESS in RANGE: " << address << "\n";
+				m_inrange_addresses.push_back(address);
+				m_isInRange = true;
+			}
+		}
+	}
 }
 
 void AquaSimRoutingMacAloha::DoDispose()

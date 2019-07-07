@@ -172,7 +172,6 @@ private:
   // Max tx_power
   double m_max_tx_power = 20; // Watts
 
-  //
   // Store packets to be sent
   std::queue<Ptr<Packet>> m_send_buffer;
 
@@ -192,6 +191,9 @@ private:
   // Time duration of the DATA_TX / RX states before transition to IDLE
   // I.e., how much data should be transmitted wihtin a single RTS/CTS handshake
   Time m_data_timeout = Seconds(10);
+
+  // Store a list of destination address, which are wihtin maximum transmission range
+  std::vector<AquaSimAddress> m_inrange_addresses;
 
 };  // class AquaSimRoutingMac
 

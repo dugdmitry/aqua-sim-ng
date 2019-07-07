@@ -17,6 +17,8 @@
 
 #include <random>
 #include <math.h>
+#include <iomanip> // setprecision
+#include <sstream> // stringstream
 
 /*
  * MAC-Routing NxN grid random destination topology tests
@@ -51,7 +53,10 @@ main (int argc, char *argv[])
 //  double distance = 10; // meters
 
   // Max Tx power
-  double max_tx_power = 20; // Watts
+  double max_tx_power = 60; // Watts
+
+  // Number of intermediate nodes (only for some experiments!!!)
+  int n_intermediate_nodes = 0;
 
 //  LogComponentEnable ("ASBroadcastMac", LOG_LEVEL_INFO);
 
@@ -64,6 +69,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("n_nodes", "Number of nodes", n_nodes);
   cmd.AddValue ("range", "Transmission range", range);
   cmd.AddValue ("tx_power", "Max transmission power", max_tx_power);
+  cmd.AddValue ("intermediate_nodes", "Number of intermediate nodes", n_intermediate_nodes);
 
 
   cmd.Parse(argc,argv);
@@ -93,7 +99,7 @@ main (int argc, char *argv[])
   asHelper.SetChannel(channel.Create());
 
   asHelper.SetMac("ns3::AquaSimRoutingMacAloha", "max_range", DoubleValue(range), "max_tx_power", DoubleValue(max_tx_power),
-  		  "packet_size", IntegerValue(m_packetSize));
+  		  "packet_size", IntegerValue(m_packetSize), "intermediate_nodes", IntegerValue(n_intermediate_nodes));
 
 //    asHelper.SetMac("ns3::AquaSimSFama", "packet_size", DoubleValue(m_packetSize));
 //    asHelper.SetMac("ns3::AquaSimBroadcastMac");
@@ -171,7 +177,16 @@ main (int argc, char *argv[])
 
   // Enable ASCII trace files
   Packet::EnablePrinting ();  //for debugging purposes
-  std::string asciiTraceFile = "xmac-trace.asc";
+  char buff[1000];
+  // Naming convention: lambda-number_of_nodes-n_intermediate_nodes-seed
+  std::stringstream stream;
+  stream << std::fixed << std::setprecision(2) << lambda;
+  std::string lambda_string = stream.str();
+  snprintf(buff, sizeof(buff), "xmac-density-trace-%s-%d-%d.asc", lambda_string.c_str(), n_nodes, n_intermediate_nodes);
+  std::string asciiTraceFile = buff;
+
+  // std::string asciiTraceFile = "xmac-trace.asc";
+  // asciiTraceFile.
   std::ofstream ascii (asciiTraceFile.c_str());
   if (!ascii.is_open()) {
     NS_FATAL_ERROR("Could not open trace file.");
