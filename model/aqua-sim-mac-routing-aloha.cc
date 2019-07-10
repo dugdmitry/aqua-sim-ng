@@ -456,7 +456,7 @@ AquaSimRoutingMacAloha::Send (Ptr<Packet> pkt)
 
       SendDown(pkt);
 
-    //   Simulator::Schedule(txtime + Seconds(0.1), &AquaSimRoutingMacAloha::ResendFrame, this);
+      Simulator::Schedule(txtime + Seconds(0.01), &AquaSimRoutingMacAloha::ResendFrame, this);
 
       break;
 		}
@@ -470,7 +470,8 @@ AquaSimRoutingMacAloha::Send (Ptr<Packet> pkt)
       NS_LOG_INFO("SendPkt: node " << m_device->GetNode() << " send data too fast");
 	pkt=0;
   }
-  Simulator::Schedule(txtime + Seconds(0.1), &AquaSimRoutingMacAloha::ResendFrame, this);
+  // m_maxACKRetryInterval = 0.05 - see ALOHA implementation
+  Simulator::Schedule(Seconds(0.05*m_rand->GetValue()), &AquaSimRoutingMacAloha::ResendFrame, this);
 //   Simulator::Schedule(txtime * m_rand->GetInteger(1, 5), &AquaSimRoutingMacAloha::ResendFrame, this);
   return true;
 }
