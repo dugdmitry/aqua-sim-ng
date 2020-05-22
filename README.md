@@ -16,8 +16,8 @@ https://ndnsim.net/current/
 2. Clone "ndnSIM" branch of aqua-sim-ng repository and place it under /src folder inside ndnSIM:
 
 <pre><code>
-cd <ndnSIM_working_directory>/src/
-git clone url
+cd `ndnSIM_working_directory`/src/
+git clone https://github.com/dugdmitry/aqua-sim-ng.git --branch ndn_integration
 </code></pre>
 
 3. Re-build the ndnSIM
@@ -33,8 +33,7 @@ git clone url
 A simple example-script for running NDN application over aqua-sim stack is provided under:
 
 <pre><code>
-cd <ndnSIM_working_directory>/src/aqua-sim-ng/examples/ndn-simple-aqua-broadcast.cc
-git clone url
+ls <ndnSIM_working_directory>/src/aqua-sim-ng/examples/ndn-simple-aqua-broadcast.cc
 </code></pre>
 
 To run it, please copy this script into `scratch` folder and execute it:
