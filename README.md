@@ -39,7 +39,7 @@ ls <ndnSIM_working_directory>/src/aqua-sim-ng/examples/ndn-simple-aqua-broadcast
 To run it, please copy this script into `scratch` folder and execute it:
 
 <pre><code>
-cp <ndnSIM_working_directory>/src/aqua-sim-ng/examples/ndn-simple-aqua-broadcast.cc <ndnSIM_working_directory>/scratch/
+cp <ndnSIM_working_directory>/src/aqua-sim-ng/examples/ndn-simple-aqua-broadcast.cc <ndnSIM_working_directory>scratch/
 ./waf --run ndn-simple-aqua-broadcast
 </code></pre>
 
