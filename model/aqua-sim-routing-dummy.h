@@ -44,7 +44,6 @@ class AquaSimRoutingDummy : public AquaSimRouting {
   void DataForSink(Ptr<Packet> pkt);
   void MACsend(Ptr<Packet> pkt, Time delay=Seconds(0));
   virtual void DoDispose();
-
 }; // class AquaSimRoutingDummy
 
 } // namespace ns3

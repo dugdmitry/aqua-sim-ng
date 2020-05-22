@@ -117,8 +117,9 @@ main (int argc, char *argv[])
 
   PacketSocketAddress socket;
   socket.SetAllDevices();
-  socket.SetPhysicalAddress (devices.Get(nodes)->GetAddress()); //Set dest to first sink (nodes+1 device)
-  socket.SetProtocol (0);
+  // socket.SetPhysicalAddress (devices.Get(nodes)->GetAddress()); //Set dest to first sink (nodes+1 device)
+  socket.SetPhysicalAddress (AquaSimAddress::ConvertFrom(devices.Get(nodes)->GetAddress())); //Set dest to first sink (nodes+1 device)
+  // socket.SetProtocol (0);
 
   OnOffHelper app ("ns3::PacketSocketFactory", Address (socket));
   app.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
@@ -151,6 +152,7 @@ main (int argc, char *argv[])
   std::cout << "-----------Running Simulation-----------\n";
   Simulator::Stop(Seconds(simStop));
   Simulator::Run();
+  asHelper.GetChannel()->PrintCounters();
   Simulator::Destroy();
 
   std::cout << "fin.\n";

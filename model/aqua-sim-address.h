@@ -27,8 +27,10 @@
 
 #include <stdint.h>
 #include "ns3/address.h"
+#include "ns3/mac48-address.h"
 #include <iostream>
 #include <cstring>
+#include <iomanip>
 
 
 namespace ns3 {
@@ -37,95 +39,66 @@ class Address;
 /**
  * \ingroup aqua-sim-ng
  *
- * \brief Specialized address for distinguishing nodes and protocol support. 16 bit addresses supported.
+ * \brief Specialized address for distinguishing nodes and protocol support. 48 bit addresses supported.
  *
- * Inspired by UanAddress but implemented for future modification to adhere to aqua-sim modification.
+ * Inherited from Mac48Address and added some methods for correct serialization/deserialization from to/from aqua-sim-header.
  */
-class AquaSimAddress
+
+class AquaSimAddress : public Mac48Address
 {
 public:
-  /** Constructor */
   AquaSimAddress ();
+  AquaSimAddress (const char *str);
   AquaSimAddress (uint16_t addr);
   virtual ~AquaSimAddress ();
 
-  static AquaSimAddress ConvertFrom (const Address &address);
-  static bool IsMatchingType  (const Address &address);
+  void CopyFrom (const uint8_t buffer[6]);
+  void CopyTo (uint8_t buffer[6]) const;
   operator Address () const;
-  void CopyFrom (const uint8_t pBuffer[2]);
-  void CopyTo (uint8_t pBuffer[2]) const;
-  uint16_t GetAsInt (void) const;
+  static AquaSimAddress ConvertFrom (const Address &address);
+  static bool IsMatchingType (const Address &address);
+  static AquaSimAddress Allocate (void);
+  bool IsBroadcast (void) const;
+  bool IsGroup (void) const;
   static AquaSimAddress GetBroadcast (void);
+  static AquaSimAddress GetMulticast (Ipv4Address address);
+  static AquaSimAddress GetMulticast (Ipv6Address address);
+  static AquaSimAddress GetMulticastPrefix (void);
+  static AquaSimAddress GetMulticast6Prefix (void);
+  typedef void (* TracedCallback)(AquaSimAddress value);
+  // Aqua-sim-address methods
+  uint16_t GetAsInt (void) const;
 
-  static AquaSimAddress Allocate ();
-
+  
 private:
-  uint8_t m_address[2]; //16-bit address
-  static uint8_t GetType (void);
   Address ConvertTo (void) const;
-
-  friend bool operator <  (const AquaSimAddress &a, const AquaSimAddress &b);
+  static uint8_t GetType (void);
   friend bool operator == (const AquaSimAddress &a, const AquaSimAddress &b);
   friend bool operator != (const AquaSimAddress &a, const AquaSimAddress &b);
+  friend bool operator < (const AquaSimAddress &a, const AquaSimAddress &b);
   friend std::ostream& operator<< (std::ostream& os, const AquaSimAddress & address);
   friend std::istream& operator>> (std::istream& is, AquaSimAddress & address);
 
-};  // class AquaSimAddress
+  uint8_t m_address[6]; //!< address value
+};
 
-
-/**
- * Address comparison, less than.
- *
- * \param a First address to compare.
- * \param b Second address to compare.
- * \return True if a < b.
- */
 inline bool operator < (const AquaSimAddress &a, const AquaSimAddress &b)
 {
-  return memcmp (a.m_address, b.m_address, 2) < 0;
+  return memcmp (a.m_address, b.m_address, 6) < 0;
 }
 
-
-/**
- * Address comparison, equalit.
- *
- * \param a First address to compare.
- * \param b Second address to compare.
- * \return True if a == b.
- */
 inline bool operator == (const AquaSimAddress &a, const AquaSimAddress &b)
 {
-  return memcmp (a.m_address, b.m_address, 2) == 0;
+  return memcmp (a.m_address, b.m_address, 6) == 0;
 }
 
-/**
- * Address comparison, unequal.
- *
- * \param a First address to compare.
- * \param b Second address to compare.
- * \return True if a != b.
- */
 inline bool operator != (const AquaSimAddress &a, const AquaSimAddress &b)
 {
-  return memcmp (a.m_address, b.m_address, 2) != 0;
+  return memcmp (a.m_address, b.m_address, 6) != 0;
 }
 
-/**
- * Write \pname{address} to stream \pname{os} as 8 bit integer.
- *
- * \param os The output stream.
- * \param address The address
- * \return The output stream.
- */
 std::ostream& operator<< (std::ostream& os, const AquaSimAddress & address);
 
-/**
- * Read \pname{address} from stream \pname{is} as 8 bit integer.
- *
- * \param is The input stream.
- * \param address The address variable to set.
- * \return The input stream.
- */
 std::istream& operator>> (std::istream& is, AquaSimAddress & address);
 
 } // namespace ns3

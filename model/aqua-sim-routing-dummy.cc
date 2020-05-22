@@ -74,6 +74,9 @@ AquaSimRoutingDummy::Recv(Ptr<Packet> packet, const Address &dest, uint16_t prot
     //packet->RemoveHeader(ash);
     //if (ash.GetSAddr().GetAsInt() > myAddr.GetAsInt()) return true; //remove backtracking of packets from traffic generator
     AquaSimAddress daddr = ash.GetDAddr();
+
+    // std::cout << daddr << "\n";
+    // std::cout << myAddr << "\n";
     if (daddr == myAddr)
     {
       packet->AddHeader(ash);
@@ -119,6 +122,8 @@ AquaSimRoutingDummy::DataForSink(Ptr<Packet> pkt)
 {
 	//  printf("DataforSink: the packet is send to demux\n");
 	NS_LOG_FUNCTION(this << pkt << "Sending up to dmux.");
+  AquaSimHeader ash;
+  pkt->RemoveHeader(ash);
 	if (!SendUp(pkt))
 		NS_LOG_WARN("DataForSink: Something went wrong when passing packet up to dmux.");
 }

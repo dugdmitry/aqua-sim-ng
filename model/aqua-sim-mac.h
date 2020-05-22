@@ -68,7 +68,7 @@ public:
   //virtual void SetPhy(Ptr<AquaSimPhy> phy);
   //virtual void SetRouting(Ptr<AquaSimRouting> rout);
 
-  virtual Address GetAddress(void) {return this->m_address; }
+  virtual Address GetAddress(void) {return AquaSimAddress::ConvertFrom(this->m_address); }
   virtual void SetAddress(AquaSimAddress addr);
 
   //interfaces for derived MAC protocols
@@ -131,6 +131,7 @@ protected:
   Ptr<AquaSimNetDevice> m_device;// the device this mac is attached
   //Ptr<AquaSimPhy> m_phy;
   //Ptr<AquaSimRouting> m_rout;
+  // AquaSimAddress m_address;
   AquaSimAddress m_address;
   double m_bitRate;
   double m_encodingEfficiency;

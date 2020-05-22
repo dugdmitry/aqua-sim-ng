@@ -78,9 +78,9 @@ bool
 AquaSimBroadcastMac::RecvProcess (Ptr<Packet> pkt)
 {
   NS_LOG_FUNCTION(this);
-  /*std::cout << "\nBMac @RecvProcess check:\n";
-  pkt->Print(std::cout);
-  std::cout << "\n";*/
+  // std::cout << "\nBMac @RecvProcess check:\n";
+  // pkt->Print(std::cout);
+  // std::cout << "\n";
 
 	AquaSimHeader ash;
   MacHeader mach;

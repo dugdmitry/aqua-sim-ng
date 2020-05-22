@@ -67,6 +67,7 @@ public:
   //uint8_t GetAddrType();	//type of next hop addr... not in use currently
   AquaSimAddress GetNextHop();	// next hop for this packet
   uint16_t GetNumForwards();	// how many times this pkt was forwarded
+  uint16_t GetProtoNumber();
   AquaSimAddress GetSAddr();
   AquaSimAddress GetDAddr();
   int32_t GetSPort();
@@ -81,6 +82,7 @@ public:
   void SetDirection(uint8_t direction);
   void SetNextHop(AquaSimAddress nextHop);
   void SetNumForwards(uint16_t numForwards);
+  void SetProtoNumber(uint16_t protoNumber);
   void SetSAddr(AquaSimAddress sAddr);
   void SetDAddr(AquaSimAddress dAddr);
   void SetSPort(int32_t sPort);	//TODO should be removed...
@@ -105,6 +107,7 @@ private:
   uint16_t m_numForwards;
   addr_t m_src;
   addr_t m_dst;
+  uint16_t m_protocol_number;
   uint8_t m_errorFlag;
   uint16_t m_uId;
   uint16_t m_size; //figmented size of packet...

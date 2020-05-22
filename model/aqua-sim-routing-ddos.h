@@ -120,6 +120,7 @@ public:
   void RecvNAck(Ptr<Packet> p);
 
   void SetThresholds(double timeout, double pb, double throttle);
+
 protected:
   virtual void DoDispose();
 

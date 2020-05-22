@@ -140,6 +140,7 @@ protected:
   void MACsend(Ptr<Packet> pkt, double delay=0);
 
   virtual void DoDispose();
+
 };  // class AquaSimVBF
 
 }  // namespace ns3

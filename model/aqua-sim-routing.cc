@@ -121,13 +121,14 @@ AquaSimRouting::GetMac()
 bool
 AquaSimRouting::SendUp(Ptr<Packet> p)
 {
-  //port_dmux->recv(p); // (Handler*)NULL
+  // port_dmux->recv(p); // (Handler*)NULL
   AquaSimHeader ash;
   p->PeekHeader(ash);
   //std::cout << "\nRouting::SinkRecv:" << m_device->GetAddress() <<",pkt#" << p->GetUid() << ",ts:" << ash.GetTimeStamp().ToDouble(Time::S) << " @" << Simulator::Now().ToDouble(Time::S);
   //std::cout << (Simulator::Now()-ash.GetTimeStamp()).ToDouble(Time::S) << "\n";
   NS_LOG_FUNCTION(this << p << " : currently a dummy sendup on nodeAddr:" <<
       AquaSimAddress::ConvertFrom(m_device->GetAddress()).GetAsInt());
+      
   m_sendUpPktCount++;
   NS_LOG_INFO("Me(" << AquaSimAddress::ConvertFrom(m_device->GetAddress()).GetAsInt() << "): SendUp: "
               << ash.GetSize() << " bytes ; "
@@ -142,6 +143,8 @@ AquaSimRouting::SendUp(Ptr<Packet> p)
 
     NOTE: AquaSimPhyCmn::SendPktUp()
   */
+  // Send packet up via NetDevice callback
+  m_forUpCb(p, AquaSimAddress::ConvertFrom(ash.GetSAddr()), AquaSimAddress::GetBroadcast());
   m_routingRxCbTrace(p);
   return true;
 }
@@ -300,6 +303,12 @@ AquaSimRouting::AssignInternalDataPath(std::vector<std::string> collection)
   NS_ASSERT(!collection.empty());
 
   m_knownDataPath = collection;
+}
+
+void
+AquaSimRouting::SetForwardUpCb (Callback<void, Ptr<Packet>, const AquaSimAddress&, const AquaSimAddress&> cb)
+{
+  m_forUpCb = cb;
 }
 
 /*

@@ -111,7 +111,6 @@ public:
   int64_t AssignStreams (int64_t stream);
 
   virtual bool Recv(Ptr<Packet> packet, const Address &dest, uint16_t protocolNumber);
-
   // Vectorbasedforward_Entry routing_table[MAX_DATA_TYPE];
 
 protected:
@@ -224,6 +223,7 @@ protected:
 
   virtual void DoDispose();
   //void trace(char *fmt,...);
+
 };  // class AquaSimVBVA
 
 } // namespace ns3

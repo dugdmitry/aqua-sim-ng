@@ -70,6 +70,9 @@ public:
   virtual void AssignInternalDataPath(std::vector<std::string> collection);
 
   virtual int64_t AssignStreams (int64_t stream) = 0;
+  // Set the callback to forward packets up to higher layers.
+  void SetForwardUpCb (Callback<void, Ptr<Packet>, const AquaSimAddress&, const AquaSimAddress&> cb);
+
 
 protected:
   /*send packet up to port-demux*/
@@ -122,6 +125,9 @@ private:
   TracedCallback<Ptr<const Packet> > m_routingTxCbTrace;
 
   int m_sendUpPktCount;
+
+  /** Forwarding up callback. */
+  Callback<void, Ptr<Packet>, const AquaSimAddress&, const AquaSimAddress&> m_forUpCb;
 
 };  //AquaSimRouting class
 

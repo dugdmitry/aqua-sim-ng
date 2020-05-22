@@ -48,7 +48,7 @@ namespace ns3 {
 namespace ns3 {
 
 class Channel;
-class PromiscReceiveCallback;
+// class PromiscReceiveCallback;
 class MobilityModel;
 
 class AquaSimPhy;
@@ -99,7 +99,7 @@ public:
   virtual void DoDispose (void);
   virtual void DoInitialize (void);
 
-  void ForwardUp (Ptr<Packet> packet, Ptr<MobilityModel> src, Ptr<MobilityModel> dst);	//not used.
+  // void ForwardUp (Ptr<Packet> packet, Ptr<MobilityModel> src, Ptr<MobilityModel> dst);	//not used.
 
   //inherited functions from NetDevice class
   virtual void AddLinkChangeCallback (Callback<void> callback);
@@ -124,8 +124,10 @@ public:
   virtual void SetIfIndex (uint32_t index);
   virtual bool SetMtu (const uint16_t mtu);
   virtual void SetNode (Ptr<Node> node);
-  virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
-  virtual void SetReceiveCallback (ReceiveCallback cb);
+  // virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
+  // virtual void SetReceiveCallback (ReceiveCallback cb);
+  virtual void SetReceiveCallback (NetDevice::ReceiveCallback cb);
+  void SetPromiscReceiveCallback (NetDevice::PromiscReceiveCallback cb);
   virtual bool SupportsSendFrom (void) const;
 
   /*
@@ -186,6 +188,8 @@ protected:
   void GenerateFailure(void);
 
 private:
+  //Forward the packet to a higher level via the SetReceiveCallback
+  virtual void ForwardUp (Ptr<Packet> pkt, const AquaSimAddress &src, const AquaSimAddress &dst);
 
   void CompleteConfig (void);
 
@@ -203,6 +207,8 @@ private:
   Ptr<NamedData> m_ndn;
 
   NetDevice::ReceiveCallback m_forwardUp;
+  NetDevice::PromiscReceiveCallback m_promiscRx; //!< promiscious receive callback
+
   bool m_configComplete;
 
   bool m_attacker;

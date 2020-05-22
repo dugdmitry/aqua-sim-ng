@@ -1157,7 +1157,6 @@ void AquaSimVBF::SetTargetPos(Vector pos)
   m_targetPos = pos;
 }
 
-
 // Some methods for Flooding Entry
 
 /*

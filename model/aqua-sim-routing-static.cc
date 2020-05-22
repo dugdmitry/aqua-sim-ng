@@ -175,5 +175,4 @@ AquaSimStaticRouting::FindNextHop(const Ptr<Packet> p)
   return it == m_rTable.end() ? AquaSimAddress::GetBroadcast() : it->second;
 }
 
-
 }  // namespace ns3

@@ -56,6 +56,7 @@ AquaSimChannel::GetTypeId ()
 {
   static TypeId tid = TypeId("ns3::AquaSimChannel")
     .SetParent<Channel> ()
+    .SetGroupName ("AquaSimNG")
     .AddConstructor<AquaSimChannel> ()
     .AddAttribute ("SetProp", "A pointer to set the propagation model.",
        PointerValue (0),
@@ -86,7 +87,7 @@ AquaSimChannel::SetPropagation (Ptr<AquaSimPropagation> prop)
 }
 
 Ptr<NetDevice>
-AquaSimChannel::GetDevice (uint32_t i) const
+AquaSimChannel::GetDevice (std::size_t i) const
 {
   return m_deviceList[i];
 }
@@ -98,7 +99,7 @@ AquaSimChannel::GetId (void) const
   return 0;
 }
 
-uint32_t
+std::size_t
 AquaSimChannel::GetNDevices (void) const
 {
   return m_deviceList.size();
@@ -205,7 +206,10 @@ AquaSimChannel::SendUp (Ptr<Packet> p, Ptr<AquaSimPhy> tifp)
     NS_LOG_DEBUG ("Channel. NodeS:" << sender->GetAddress() << " NodeR:" << recver->GetAddress() << " S.Phy:" << sender->GetPhy() << " R.Phy:" << recver->GetPhy() << " packet:" << p
 		  << " TxTime:" << asHeader.GetTxTime() << pDelay);
 
-    Simulator::Schedule(pDelay, &AquaSimPhy::Recv, rifp, p->Copy());
+    // Simulator::Schedule(pDelay, &AquaSimPhy::Recv, rifp, p->Copy());
+
+    // Schedule the reception event and swithing the context to the receiver node
+    Simulator::ScheduleWithContext(recver->GetNode()->GetId(), pDelay, &AquaSimPhy::Recv, rifp, p->Copy());
 
     /* TODO in future support multiple phy with below code.
      *

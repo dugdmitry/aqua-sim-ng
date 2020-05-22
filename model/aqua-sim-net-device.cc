@@ -257,6 +257,9 @@ AquaSimNetDevice::SetRouting(Ptr<AquaSimRouting> routing)
       m_routing->SetNetDevice(Ptr<AquaSimNetDevice> (this));
 
       CompleteConfig ();
+      
+      // m_routing->SetForwardUpCb (MakeCallback (&AquaSimNetDevice::ForwardUp, this));
+      m_routing->SetForwardUpCb(MakeCallback(&AquaSimNetDevice::ForwardUp, this));
     }
   else
     NS_LOG_DEBUG("NetDevice could not set routing layer (" << m_routing << ")");
@@ -497,8 +500,9 @@ AquaSimNetDevice::GetAddress (void) const
 Address
 AquaSimNetDevice::GetBroadcast (void) const
 {
-  NS_LOG_WARN("Not implemented since UW is median is always broadcast (i.e. 255).");
-  return Address();
+  // NS_LOG_WARN("Not implemented since UW is median is always broadcast (i.e. 255).");
+  // return Address();
+  return AquaSimAddress::GetBroadcast();
 }
 
 uint32_t
@@ -572,9 +576,12 @@ AquaSimNetDevice::Send (Ptr< Packet > packet, const Address &dest, uint16_t prot
   AquaSimHeader ash;
   uint32_t pktSize = packet->GetSize();
   ash.SetSize(pktSize);
+  // std::cout << GetAddress() << "\n";
+  // std::cout << AquaSimAddress::ConvertFrom(GetAddress()) << "\n";
   ash.SetSAddr(AquaSimAddress::ConvertFrom(GetAddress()));
   ash.SetDAddr(AquaSimAddress::ConvertFrom(dest));
   ash.SetNextHop(AquaSimAddress::GetBroadcast());
+  ash.SetProtoNumber(protocolNumber);
 
   //Quick hack. Named Data should be NULL pointer if unused/unset.
   if (m_ndn)
@@ -637,10 +644,17 @@ AquaSimNetDevice::SetMtu (uint16_t mtu)
   return true;
 }
 
+// void
+// AquaSimNetDevice::SetPromiscReceiveCallback (PromiscReceiveCallback cb)
+// {
+//   NS_LOG_WARN("PromiscRecvCB Not supported");
+// }
+
 void
 AquaSimNetDevice::SetPromiscReceiveCallback (PromiscReceiveCallback cb)
 {
-  NS_LOG_WARN("PromiscRecvCB Not supported");
+  m_promiscRx = cb;
+  // m_mac->SetPromisc ();
 }
 
 void
@@ -648,6 +662,32 @@ AquaSimNetDevice::SetReceiveCallback (ReceiveCallback cb)
 {
   NS_LOG_WARN("RecvCallback not implemented");
   m_forwardUp = cb;
+}
+
+void
+AquaSimNetDevice::ForwardUp (Ptr<Packet> pkt, const AquaSimAddress &src, const AquaSimAddress &dst)
+{
+  NS_LOG_DEBUG ("Forwarding packet up to application");
+  // m_rxLogger (pkt, src);
+
+  AquaSimHeader ash;
+  pkt->RemoveHeader(ash); // TODO: WHY remove 2 times? (see routing SendUp method) FIX it.
+
+  NetDevice::PacketType type;
+  if (dst.IsBroadcast ())
+    {
+      type = NetDevice::PACKET_BROADCAST;
+    }
+  else if (dst == m_mac->GetAddress ())
+    {
+      type = NetDevice::PACKET_HOST;
+    }
+  else
+    {
+      type = NetDevice::PACKET_OTHERHOST;
+    }
+
+  m_promiscRx (this, pkt, ash.GetProtoNumber(), src, dst, type);
 }
 
 bool
@@ -667,7 +707,6 @@ AquaSimNetDevice::GetNextHop()
 {
   return m_nextHop;
 }
-
 
 void
 AquaSimNetDevice::SetTransmissionStatus(TransStatus status)

@@ -143,7 +143,6 @@ private:
   int m_accessibleVar;
   uint8_t m_seqNum;
   Ptr<UniformRandomVariable> m_rand;
-
 };  // class AquaSimDynamicRouting
 
 }  // namespace ns3

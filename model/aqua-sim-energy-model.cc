@@ -120,6 +120,11 @@ AquaSimEnergyModel::HandleEnergyRecharged(void)
   //Not currently used.
 }
 
+void
+AquaSimEnergyModel::HandleEnergyChanged(void)
+{
+  //Not currently used.
+}
 
 double
 AquaSimEnergyModel::GetCurrentA(void) const
