@@ -108,6 +108,9 @@ AquaSimRangePropagation::ReceivedCopies (Ptr<AquaSimNetDevice> s,
 		pru.recver = dList[i];
 		pru.pDelay = Time::FromDouble(dist / AcousticSpeed(std::fabs(recvModel->GetPosition().z - senderModel->GetPosition().z)),Time::S);
 		pru.pR = RayleighAtt(dist, pstamp.GetFreq(), pstamp.GetPt());
+
+		// std::cout << "RX power: " << RayleighAtt(dist, pstamp.GetFreq(), pstamp.GetPt()) << "\n";
+
 		res->push_back(pru);
 
     NS_LOG_DEBUG("AquaSimRangePropagation::ReceivedCopies: Sender("

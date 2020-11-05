@@ -59,9 +59,9 @@ void AquaSimSFama_DataSend_Timer::expire()
 }
 
 
-AquaSimSFama::AquaSimSFama():m_status(IDLE_WAIT), m_guardTime(0.00001),
+AquaSimSFama::AquaSimSFama():m_status(IDLE_WAIT), m_guardTime(1), // change guard_time from 0.00001
     m_slotLen(0), m_isInRound(false), m_isInBackoff(false),
-    m_maxBackoffSlots(4), m_maxBurst(1), m_dataSendingInterval(0.0000001),
+    m_maxBackoffSlots(10), m_maxBurst(1), m_dataSendingInterval(0.0000000000001),
   m_waitSendTimer(this), m_waitReplyTimer(this),
   m_backoffTimer(this), m_datasendTimer(this)
 {
@@ -84,17 +84,22 @@ AquaSimSFama::GetTypeId(void)
     .SetParent<AquaSimMac>()
     .AddConstructor<AquaSimSFama>()
     .AddAttribute("GuardTime", "The guard time in double. Default is 0.00001",
-      DoubleValue(0.00001),
+//      DoubleValue(0.00001),
+      DoubleValue(1), // change guard_time from 0.00001 due to a previous bug in slot_length calculation
       MakeDoubleAccessor(&AquaSimSFama::m_guardTime),
       MakeDoubleChecker<double>())
     .AddAttribute("MaxBackoffSlots", "The maximum number of backoff slots. default is 4",
-      IntegerValue(4),
+      IntegerValue(100),
       MakeIntegerAccessor (&AquaSimSFama::m_maxBackoffSlots),
       MakeIntegerChecker<int>())
     .AddAttribute("MaxBurst", "The maximum number of packets in the train. Default is 1",
       IntegerValue(1),
       MakeIntegerAccessor(&AquaSimSFama::m_maxBurst),
       MakeIntegerChecker<int>())
+	.AddAttribute("packet_size", "Data packet size, bytes",
+	  DoubleValue(50),
+	  MakeDoubleAccessor(&AquaSimSFama::m_packet_size),
+	  MakeDoubleChecker<double>())
     ;
   return tid;
 }
@@ -121,6 +126,8 @@ AquaSimSFama::RecvProcess(Ptr<Packet> p)
 
   NS_LOG_DEBUG("Time:" << Simulator::Now().GetSeconds() << ",node:" << m_device->GetNode() <<
                 ",node " << mach.GetDA() << " recv from node " << mach.GetSA());
+
+//  	  std::cout << "PACKET TYPE: " << SFAMAh.GetPType() << "\n";
 
 		switch( SFAMAh.GetPType() ) {
 			case SFamaHeader::SFAMA_RTS:
@@ -184,15 +191,35 @@ void
 AquaSimSFama::InitSlotLen()
 {
   SFamaHeader SFAMA;
-	m_slotLen = m_guardTime +
-		GetTxTime(SFAMA.GetSize(SFamaHeader::SFAMA_CTS) +
-		Device()->GetPhy()->GetTransRange()/1500.0).ToDouble(Time::S);
+//	m_slotLen = m_guardTime +
+//		GetTxTime(100 +					// SFAMA.GetSize(SFamaHeader::SFAMA_CTS
+//		Device()->GetPhy()->GetTransRange()/1500.0).ToDouble(Time::S);
+
+//	m_slotLen = m_guardTime +
+//			GetTxTime(SFAMA.GetSize(SFamaHeader::SFAMA_DATA)).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0;
+
+//  std::cout << "PACKET SIZE: " << m_packet_size << "\n";
+//  std::cout << "TRANS RANGE: " << Device()->GetPhy()->GetTransRange() << "\n";
+
+  m_slotLen = GetTxTime(m_packet_size).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0 +
+			0.5*Device()->GetPhy()->GetTransRange()/1500.0; // guard_time = half of propagation delay
+
+//  m_slotLen = GetTxTime(m_packet_size).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0 + 0.0000001;
+
+//  m_slotLen = GetTxTime(m_packet_size).ToDouble(Time::S) + Device()->GetPhy()->GetTransRange()/1500.0 + 5;
+
+
+//	std::cout << "SLOT LENGTH: " << m_slotLen << "\n";
 }
 
 double
 AquaSimSFama::GetTime2ComingSlot(double t)
 {
-	double numElapseSlot = t/m_slotLen;
+	// Slot number cannot be float!
+//	double numElapseSlot = t/m_slotLen;
+	uint32_t numElapseSlot = t/m_slotLen;
+
+//	std::cout << "NumElapseSlot: " << numElapseSlot << "\n";
 
 	return m_slotLen*(1+numElapseSlot)-t;
 }
@@ -282,13 +309,22 @@ AquaSimSFama::FillDATA(Ptr<Packet> data_pkt)
   data_pkt->RemoveHeader(SFAMAh);
   data_pkt->RemoveHeader(mach);
 
-  ash.SetSize(SFAMAh.GetSize(SFamaHeader::SFAMA_DATA));
+  // TODO: FIX THIS! WHY DATA PACKET SIZE IS ALWAYS 47 (see SFAMAh.GetSize())??
+//  ash.SetSize(SFAMAh.GetSize(SFamaHeader::SFAMA_DATA));
+//  std::cout << "Packet Size:" << ash.GetSize() << "\n";
+
   ash.SetTxTime(GetTxTime(ash.GetSize()) );
   ash.SetErrorFlag(false);
   ash.SetDirection(AquaSimHeader::DOWN);
 
   mach.SetSA(AquaSimAddress::ConvertFrom(m_device->GetAddress()) );
-  mach.SetDA(ash.GetNextHop());
+//  mach.SetDA(ash.GetNextHop());
+  // Fix DA assignment. MAC-ROUTING TESTS.
+//  std::cout << "SA FROM ASH:" << ash.GetSAddr() << "\n";
+//  std::cout << "DA FROM ASH:" << ash.GetDAddr() << "\n";
+
+  mach.SetDA(ash.GetDAddr());
+  ///
 
   SFAMAh.SetPType(SFamaHeader::SFAMA_DATA);
   //SFAMAh->SA = index_;
@@ -353,6 +389,9 @@ AquaSimSFama::ProcessRTS(Ptr<Packet> rts_pkt)
 	rts_pkt->AddHeader(ash);
 
 	double time2comingslot = GetTime2ComingSlot(Simulator::Now().ToDouble(Time::S));
+//	std::cout << "Time to coming Slot: " << time2comingslot << "\n";
+
+//	std::cout << "STATUS: " << GetStatus() << "\n";
 
 	if( mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()) ) {
 		if ( (GetStatus() == IDLE_WAIT ||
@@ -363,14 +402,21 @@ AquaSimSFama::ProcessRTS(Ptr<Packet> rts_pkt)
 				SetStatus(WAIT_SEND_CTS);
 				//reply a cts
 				m_waitSendTimer.m_pkt = MakeCTS(mach.GetSA(), SFAMAh.GetSlotNum());
+
         m_waitSendTimer.SetFunction(&AquaSimSFama_Wait_Send_Timer::expire,&m_waitSendTimer);
         m_waitSendTimer.Schedule(Seconds(time2comingslot));
 		}
 	}
 	else {
 		//do backoff
-		double backoff_time = time2comingslot + 1 /*for cts*/+
-			SFAMAh.GetSlotNum()*m_slotLen /*for data*/+ 1 /*for ack*/;
+//		double backoff_time = time2comingslot + 1 /*for cts*/+
+//			SFAMAh.GetSlotNum()*m_slotLen /*for data*/+ 1 /*for ack*/;
+
+		double backoff_time = time2comingslot + (SFAMAh.GetSlotNum())*m_slotLen;
+//		double backoff_time = time2comingslot + RandBackoffSlots()*m_slotLen;
+
+//		std::cout << "SlotNum: " << SFAMAh.GetSlotNum() << "\n";
+//		std::cout << "Current Slot: " << Simulator::Now().ToDouble(Time::S) / m_slotLen << "\n";
 
 		StopTimers();
 		SetStatus(BACKOFF);
@@ -398,6 +444,10 @@ AquaSimSFama::ProcessCTS(Ptr<Packet> cts_pkt)
 	cts_pkt->AddHeader(ash);
 
 	double time2comingslot = GetTime2ComingSlot(Simulator::Now().ToDouble(Time::S));
+
+//	std::cout << "DESTINATION ADDRESS: " << mach.GetDA() << "\n";
+//	std::cout << "STATUS:" << GetStatus() << "\n";
+
 
 	if( mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()) && GetStatus() == WAIT_RECV_CTS ) {
 
@@ -446,6 +496,7 @@ AquaSimSFama::ProcessDATA(Ptr<Packet> data_pkt)
 	data_pkt->AddHeader(ash);
 
 	if( mach.GetDA() == AquaSimAddress::ConvertFrom(m_device->GetAddress()) && GetStatus() == WAIT_RECV_DATA ) {
+
 		//send ACK
 		StopTimers();
 		SetStatus(WAIT_SEND_ACK);
@@ -563,6 +614,7 @@ AquaSimSFama::PrepareSendingDATA()
 			m_sendingPktQ.front()->PeekHeader(mach);
 			m_sendingPktQ.front()->AddHeader(SFAMAh);
 			m_sendingPktQ.front()->AddHeader(ash);
+
       recver_addr = mach.GetDA();
 	} else if( !m_CachedPktQ.empty() && GetStatus() == IDLE_WAIT ) {
     NS_LOG_DEBUG("PrepareSendingDATA(before)");
@@ -621,8 +673,10 @@ AquaSimSFama::PrepareSendingDATA()
 			GetTxTime(SFAMAh.GetSize(SFamaHeader::SFAMA_CTS)).ToDouble(Time::S);
 
 
-	ScheduleRTS(recver_addr, (additional_txtime/m_slotLen)+1 /*for ceil*/
-	+1/*the basic slot*/ );
+//	ScheduleRTS(recver_addr, (additional_txtime/m_slotLen)+1 /*for ceil*/
+//	+1/*the basic slot*/ );
+
+	ScheduleRTS(recver_addr, (int)(additional_txtime/m_slotLen) + 1);
 }
 
 double
@@ -638,6 +692,9 @@ AquaSimSFama::GetPktTrainTxTime()
   AquaSimHeader ash;
 	for(int i=0; i<q_size; i++ ) {
     m_sendingPktQ.front()->PeekHeader(ash);
+
+//    std::cout << "TxTime: " << ash.GetTxTime().ToDouble(Time::S) << "\n";
+
     txtime += ash.GetTxTime().ToDouble(Time::S);
 		m_sendingPktQ.push(m_sendingPktQ.front());
 		m_sendingPktQ.pop();
@@ -690,6 +747,8 @@ AquaSimSFama::SendPkt(Ptr<Packet> pkt)
 	Time txtime=ash.GetTxTime();
 
 	//status_handler.is_ack() = false;
+//	std::cout << "PACKET TYPE: " << SFAMAh.GetPType() << "\n";
+
 	if( SFAMAh.GetPType() == SFamaHeader::SFAMA_CTS ) {
     m_slotNumHandler = SFAMAh.GetSlotNum();
 	}
@@ -744,7 +803,9 @@ AquaSimSFama::StatusProcess(int slotnum)
 	  case WAIT_SEND_DATA:
 		//cannot reach here
 		slotnum = 1;
+
 		SetStatus(WAIT_RECV_ACK);
+
 		//wait_reply time has been scheduled.
 		return;
 	  case WAIT_SEND_ACK:
@@ -800,6 +861,7 @@ AquaSimSFama::WaitSendTimerProcess(Ptr<Packet> pkt)
 	if( NULL == pkt ) {
     m_datasendTimer.SetFunction(&AquaSimSFama_DataSend_Timer::expire,&m_datasendTimer);
     m_datasendTimer.Schedule(Seconds(0.00001));
+//    m_datasendTimer.Schedule(Seconds(0.00000001));
 	}
 	else {
 		SendPkt(pkt);
@@ -822,6 +884,8 @@ AquaSimSFama::WaitReplyTimerProcess(bool directcall)
 	} else {
 		SetStatus(BACKOFF);
     m_backoffTimer.SetFunction(&AquaSimSFama_Backoff_Timer::expire,&m_backoffTimer);
+//    std::cout << "TIMEOUT VALUE: " << Seconds(backoff_time) << "\n";
+
     m_backoffTimer.Schedule(Seconds(backoff_time));
 	}
 

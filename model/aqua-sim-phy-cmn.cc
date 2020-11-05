@@ -69,6 +69,8 @@ AquaSimPhyCmn::AquaSimPhyCmn(void) :
   m_L = 0;
   m_K = 2.0;
   m_freq = 25;
+//  m_freq = 0.1;
+
   m_transRange=-1;
 
   m_modulationName = "default";
@@ -113,6 +115,7 @@ AquaSimPhyCmn::GetTypeId(void)
       MakeDoubleChecker<double>())
     .AddAttribute("Frequency", "The frequency, default is 25(khz).",
       DoubleValue(25),
+//      DoubleValue(0.1),
       MakeDoubleAccessor(&AquaSimPhyCmn::m_freq),
       MakeDoubleChecker<double>())
     .AddAttribute("L", "System loss default factor.",
@@ -318,12 +321,56 @@ Ptr<Packet>
 AquaSimPhyCmn::StampTxInfo(Ptr<Packet> p)
 {
   AquaSimPacketStamp pstamp;
+//  std::cout << "PT VALUE:" << m_pT << "\n";
   pstamp.SetPt(m_pT);
+
   pstamp.SetPr(m_lambda);
   pstamp.SetFreq(m_freq);
-  pstamp.SetPt(m_powerLevels[m_ptLevel]);
+  // Disable this for mac_routing dev
+//  pstamp.SetPt(m_powerLevels[m_ptLevel]);
+  //
   pstamp.SetTxRange(m_transRange);
   //pstamp.SetModName(m_modulationName);
+
+  MacHeader mach;
+  AquaSimHeader ash;
+
+  p->RemoveHeader(ash);
+  p->RemoveHeader(mach);
+
+  // Set Tx power to pstamp for mac_routing dev
+  // Set the current transmission range as well, to separate the collision domains
+  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+  {
+	  MacRoutingHeader mac_routing_h;
+
+	  p->RemoveHeader(mac_routing_h);
+
+	  pstamp.SetPt(mac_routing_h.GetTxPower());
+//	  std::cout << "TX POWER VALUE:" << mac_routing_h.GetTxPower() << "\n";
+
+	  // Skip INIT messages
+	  if (mac_routing_h.GetPType() != 4)
+	  {
+//		  std::cout << "TX RANGE: " << mac_routing_h.GetNextHopDistance() << "\n";
+		  pstamp.SetTxRange(mac_routing_h.GetNextHopDistance());
+	  }
+
+	  // Experimental !!!
+//	  EM()->SetTxPower(mac_routing_h.GetTxPower() - 100);
+	  EM()->SetTxPower(mac_routing_h.GetTxPower());
+	  ///
+	  p->AddHeader(mac_routing_h);
+  }
+  else
+  {
+	  // EXPERIMENTAL !!! Consider the tx power in EM()
+	  EM()->SetTxPower(m_pT);
+  }
+
+  p->AddHeader(mach);
+  p->AddHeader(ash);
+
   p->AddHeader(pstamp);
   return p;
 }
@@ -336,7 +383,6 @@ bool
 AquaSimPhyCmn::Recv(Ptr<Packet> p)
 {
   NS_LOG_FUNCTION(this << p << "at time" << Simulator::Now().GetSeconds() << " on node " << GetNetDevice()->GetAddress());
-
   /*std::cout << "\nPhyCmn: @Recv check:\n";
   p->Print(std::cout);
   std::cout << "\n";*/
@@ -413,13 +459,16 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     return NULL;
   }
 
+  // DISABLE THIS FOR PURE MAC TESTS
   /**
   * any packet error set here result from that a packet
   * cannot be detected by the modem, so modem's status doesn't receive
   */
-  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
-				      || GetNetDevice()->GetTransmissionStatus() == SEND
-              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
+//				      || GetNetDevice()->GetTransmissionStatus() == SEND
+//              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//				      || pstamp.GetPr() < m_RXThresh)
+  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
 				      || pstamp.GetPr() < m_RXThresh)
   {
     /**
@@ -428,6 +477,8 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     */
     NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
     asHeader.SetErrorFlag(true);
+    // Set the collision flag to true as well
+    m_collision_flag = true;
   }
   else {
       GetNetDevice()->SetTransmissionStatus(RECV);
@@ -444,11 +495,127 @@ AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
     GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
   }
 
+	// Get recv power for mac_routing dev
+	if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+	{
+		MacRoutingHeader mac_routing_h;
+
+		p->RemoveHeader(mach);
+		p->RemoveHeader(mac_routing_h);
+
+		mac_routing_h.SetRxPower(pstamp.GetPr());
+
+		p->AddHeader(mac_routing_h);
+		p->AddHeader(mach);
+
+	}
+
+
   p->AddHeader(asHeader);
   //p->AddHeader(pstamp); no longer needed.
 
+  // If the packet is not marked as collided (error flag is false), then delay the packet on the TxTime, to make sure that no other packets cause
+  // collisions to this packet. If some packets appear within the TxTime delay interval of the given packet, then mark it as collided as well.
+  if (asHeader.GetErrorFlag() == false)
+  {
+    m_collision_flag = false;
+    Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimPhyCmn::CollisionCheck, this, p->Copy());
+    return NULL;
+  }
+
   return p;
 }
+
+//Ptr<Packet>
+//AquaSimPhyCmn::PrevalidateIncomingPkt(Ptr<Packet> p)
+//{
+//  NS_LOG_FUNCTION(this << p);
+//
+//  AquaSimPacketStamp pstamp;
+//  AquaSimHeader asHeader;
+//  p->RemoveHeader(pstamp);
+//  p->RemoveHeader(asHeader);
+//  NS_LOG_DEBUG ("TxTime=" << asHeader.GetTxTime());
+//  Time txTime = asHeader.GetTxTime();
+//
+//  if (GetNetDevice()->FailureStatus()) {
+//    NS_LOG_WARN("AquaSimPhyCmn: nodeId=" << GetNetDevice()->GetNode()->GetId() << " fails!\n");
+//    p = 0;
+//    return NULL;
+//  }
+//
+//  if (!MatchFreq(pstamp.GetFreq())) {
+//    NS_LOG_WARN("AquaSimPhyCmn: Cannot match freq(" << pstamp.GetFreq() << ") on node(" <<
+//		GetNetDevice()->GetNode() << ")");
+//    p = 0;
+//    return NULL;
+//  }
+//
+//  MacHeader mach;
+//  p->PeekHeader(mach);
+//  // Disable this for MAC-ROUTING tests
+//  /**
+//  * any packet error set here result from that a packet
+//  * cannot be detected by the modem, so modem's status doesn't receive
+//  */
+//  if ((EM() && EM()->GetEnergy() <= 0) || GetNetDevice()->GetTransmissionStatus() == SLEEP
+//				      || GetNetDevice()->GetTransmissionStatus() == SEND
+//              || GetNetDevice()->GetTransmissionStatus() == RECV /* possible collision */
+//				      || pstamp.GetPr() < m_RXThresh)
+//  {
+//
+//    /**
+//    * p still can pass since its signal may affect other packets
+//    * when this node wake up or start to receive other packets
+//    */
+//    NS_LOG_DEBUG("PrevalidateIncomingPkt: packet error");
+////    std::cout << "TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus() << "\n";
+//    asHeader.SetErrorFlag(true);
+//  }
+//  else {
+//	  /// MAC-ROUTING DEV. Filter duplicate frames by rx threshold
+//	  if (pstamp.GetPr() > 0.01)
+//		{
+//		    GetNetDevice()->SetTransmissionStatus(RECV);
+//		}
+//	  ///
+//
+//      //SetPhyStatus(PHY_RECV);
+//      //finish recv packet
+//
+////      std::cout << "RECV TIME: " << CalcTxTime(asHeader.GetSize()) << "\n";
+//
+//      Simulator::Schedule(CalcTxTime(asHeader.GetSize()),&AquaSimNetDevice::SetTransmissionStatus,GetNetDevice(),NIDLE);
+//  }
+//
+//  UpdateRxEnergy(txTime, (bool)asHeader.GetErrorFlag());
+//
+////  MacHeader mach;
+////  p->PeekHeader(mach);
+//  if(mach.GetDemuxPType() == MacHeader::UWPTYPE_LOC) {
+//    GetNetDevice()->GetMacLoc()->SetPr(pstamp.GetPr());
+//  }
+//  // Get recv power for mac_routing dev
+//  if (mach.GetDemuxPType() == MacHeader::UWPTYPE_MAC_ROUTING)
+//  {
+//  	MacRoutingHeader mac_routing_h;
+//
+//  	p->RemoveHeader(mach);
+//  	p->RemoveHeader(mac_routing_h);
+//
+//  	mac_routing_h.SetRxPower(pstamp.GetPr());
+//
+//  	p->AddHeader(mac_routing_h);
+//  	p->AddHeader(mach);
+//
+//  }
+//  //
+//
+//  p->AddHeader(asHeader);
+//  //p->AddHeader(pstamp); no longer needed.
+//
+//  return p;
+//}
 
 /**
 * pass packet p to channel
@@ -471,6 +638,9 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   if (GetNetDevice()->GetTransmissionStatus() == SLEEP || (NULL != EM() && EM()->GetEnergy() <= 0))
   {
     NS_LOG_DEBUG("Unable to reach phy layer (sleep/disable)");
+    NS_LOG_DEBUG("DEV TRANSMISSION STATUS: " << GetNetDevice()->GetTransmissionStatus());
+    NS_LOG_DEBUG("EM STATUS: " << EM());
+    NS_LOG_DEBUG("EM GET ENERGY STATUS: " << EM()->GetEnergy());
     p = 0;
     return false;
   }
@@ -478,6 +648,7 @@ AquaSimPhyCmn::PktTransmit(Ptr<Packet> p, int channelId) {
   switch (GetNetDevice()->GetTransmissionStatus()){
   case SEND:
     UpdateTxEnergy(asHeader.GetTxTime());
+//    std::cout << "TX TIME: " << asHeader.GetTxTime() << "\n";
     break;
   case NIDLE:
     /*
@@ -545,6 +716,14 @@ AquaSimPhyCmn::SendPktUp(Ptr<Packet> p)
       if (!GetMac()->RecvProcess(p))
         NS_LOG_DEBUG(this << "Mac Recv error");
     break;
+
+  // Add case for MAC_ROUITING mac type
+  case MacHeader::UWPTYPE_MAC_ROUTING:
+    if(m_device->MacEnabled())
+      if (!GetMac()->RecvProcess(p))
+        NS_LOG_DEBUG(this << "Mac Recv error");
+    break;
+
   case MacHeader::UWPTYPE_LOC:
     GetNetDevice()->GetMacLoc()->Recv(p);
     break;
@@ -578,7 +757,6 @@ AquaSimPhyCmn::SignalCacheCallback(Ptr<Packet> p) {
   p->AddHeader(asHeader);
 
   pktRecvCounter++; //debugging...
-
   SendPktUp(p);
 }
 
@@ -742,6 +920,36 @@ void AquaSimPhyCmn::SetTransRange(double range)
 double AquaSimPhyCmn::GetTransRange()
 {
   return m_transRange;
+}
+
+// Check collision status of the first received packet when net_device was in IDLE state
+void 
+AquaSimPhyCmn::CollisionCheck(Ptr<Packet> packet)
+{
+  AquaSimHeader asHeader;
+  packet->RemoveHeader(asHeader);
+  // If some packets were receved during the TxTime of the original packet, then mark it as collided as well
+  //put the packet into the incoming queue  
+  asHeader.SetErrorFlag(m_collision_flag);
+  // Put the net device in RECV state immediately, if the net device was receiving packets after the original one, within the TxTime delay
+  if (m_collision_flag == true)
+  {
+    GetNetDevice()->SetTransmissionStatus(RECV);
+    // Schedule the transition to IDLE state as well. Otherwise, the net device will stuck in RECV state forever.
+    Simulator::Schedule(CalcTxTime(asHeader.GetSize()), &AquaSimNetDevice::SetTransmissionStatus, GetNetDevice(), NIDLE);
+  }
+
+  packet->AddHeader(asHeader);
+
+  m_sC->AddNewPacket(packet);
+}
+
+
+// Method for setting Pt - transmission power in Watts
+void
+AquaSimPhyCmn::SetPt(double p_t)
+{
+	m_pT = p_t;
 }
 
 int64_t

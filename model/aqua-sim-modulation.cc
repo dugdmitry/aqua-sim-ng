@@ -31,6 +31,7 @@ NS_OBJECT_ENSURE_REGISTERED (AquaSimModulation);
 
 AquaSimModulation::AquaSimModulation () :
     m_codingEff(1), m_sps(10000), m_ber(0)
+//	m_codingEff(1), m_sps(1000), m_ber(0)	// For SFAMA tests
 {
 }
 
@@ -45,6 +46,7 @@ AquaSimModulation::GetTypeId (void)
        MakeDoubleChecker<double> ())
     .AddAttribute ("SPS", "The number of symbols per second.",
        UintegerValue (10000),
+//	   UintegerValue (1000),	// For SFAMA tests
        MakeUintegerAccessor (&AquaSimModulation::m_sps),
        MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("BER", "The bit error rate.",

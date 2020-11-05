@@ -92,6 +92,8 @@ public:
   }
   */
 
+  // Add method for setting Pt - transmission power in Watts
+  void SetPt(double p_t);
   virtual inline double GetPt() { return m_pT; }
   virtual inline double GetRXThresh() { return m_RXThresh; }
   virtual inline double GetCSThresh() { return m_CSThresh; }
@@ -117,6 +119,10 @@ public:
   */
   virtual void SetTransRange(double range);
   virtual double GetTransRange();
+
+  // Check collision status of the first received packet when net_device was in IDLE state
+  virtual void CollisionCheck(Ptr<Packet> packet);
+
 
 protected:
   virtual Ptr<Packet> PrevalidateIncomingPkt(Ptr<Packet> p);
@@ -190,6 +196,10 @@ private:
 
   ns3::TracedCallback<Ptr<Packet>, double > m_rxLogger;
   ns3::TracedCallback<Ptr<Packet>, double > m_txLogger;
+
+  // Collision flag in order to monitor whether there have been incoming packets wihtin the TxTime delay of the original packet.
+  // If yes, then mark the original packet as collided as well.
+  bool m_collision_flag = false;
 
 }; //AquaSimPhyCmn
 

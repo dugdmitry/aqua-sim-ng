@@ -42,12 +42,14 @@ NS_LOG_COMPONENT_DEFINE ("AquaSimHelper");
 
 static void AsciiPhyRxEvent (std::ostream *os, std::string context, Ptr<Packet> pkt, double noise)
 {
-  *os << "r " << Simulator::Now().GetSeconds() << " " << context << " " << *pkt << std::endl;
+//  *os << "r " << Simulator::Now().GetSeconds() << " " << context << " " << *pkt << std::endl;
+  *os << "r " << Simulator::Now().GetNanoSeconds() << " " << context << " " << *pkt << std::endl;
 }
 
 static void AsciiPhyTxEvent (std::ostream *os, std::string context, Ptr<Packet> pkt, double noise)
 {
-  *os << "t " << Simulator::Now().GetSeconds() << " " << context << " " << *pkt << std::endl;
+//  *os << "t " << Simulator::Now().GetSeconds() << " " << context << " " << *pkt << std::endl;
+  *os << "t " << Simulator::Now().GetNanoSeconds() << " " << context << " " << *pkt << std::endl;
 }
 
 

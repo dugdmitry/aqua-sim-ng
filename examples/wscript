@@ -24,3 +24,36 @@ def build(bld):
 
     obj = bld.create_ns3_program('FloodingMac', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
     obj.source = 'floodMac.cc'
+    
+    obj = bld.create_ns3_program('MacRoutingTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_test.cc'
+
+    obj = bld.create_ns3_program('MacRoutingChainTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_chain_topology.cc'
+    
+    obj = bld.create_ns3_program('ALOHAChainTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'aloha_chain_topology.cc'
+
+    obj = bld.create_ns3_program('MacRoutingAlohaGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_aloha_grid_test.cc'
+    
+    obj = bld.create_ns3_program('MacRoutingAlohaGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_aloha_grid_random_test.cc'
+    
+    obj = bld.create_ns3_program('MacRoutingGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_grid_test.cc'
+    
+    obj = bld.create_ns3_program('MacRoutingGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'mac_routing_grid_random_test.cc'
+    
+    obj = bld.create_ns3_program('SFAMAGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'sfama_grid_test.cc'
+    
+    obj = bld.create_ns3_program('SFAMAGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'sfama_grid_random_test.cc'
+        
+    obj = bld.create_ns3_program('ALOHAGridTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'aloha_grid_test.cc'
+    
+    obj = bld.create_ns3_program('ALOHAGridRandomTest', ['network', 'mobility', 'energy', 'applications', 'aqua-sim-ng'])
+    obj.source = 'aloha_grid_random_test.cc'

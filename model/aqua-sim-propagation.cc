@@ -23,6 +23,8 @@
 #include "ns3/log.h"
 #include "ns3/mobility-model.h"
 
+#include <math.h>
+
 #include "aqua-sim-propagation.h"
 
 namespace ns3 {
@@ -75,15 +77,27 @@ AquaSimPropagation::Rayleigh (double d, double f)
 
   double d1=d/1000.0; // convert to km
   double t1=pow(d,k);
+//  double t1=pow(d1,k);
   double alpha_f=Thorp(d,f);
+
+  // Change this to test the attenuation model
+//  double alpha=alpha_f;
   double alpha=pow(10.0,(alpha_f/10.0));
+
+//  std::cout << "ALPHA: " << alpha << "\n";
+
   double t3=pow(alpha,d1);
+
   NS_LOG_DEBUG("Rayleigh dump: distance(km):" << d1 <<
                   ", k:" << k <<
                   ", f:" << f <<
                   ", a(f):" << alpha_f <<
                   ", A(l,f):" << t1*t3);
   return t1*t3;
+//  return pow(10, (20*std::log10(d))/20.0) + alpha*d1;
+//  return d + alpha*d1;
+
+
 }
 
 
@@ -130,9 +144,15 @@ AquaSimPropagation::Thorp (double dist, double freq)
                 + 0.000275 * pow(freq,2) + 0.003 );
   return spre + abso;
   */
-  return (0.11 * pow(freq,2) / (1 + pow(freq,2) )
-      + 44 * pow(freq,2) / (4100 + pow(freq,2) )
-      + 0.000275 * pow(freq,2) + 0.0003 );
+	// Modify Thorp equation according to the formula in https://dl.acm.org/citation.cfm?id=1161049
+
+	return (0.11 * pow(freq,2) / (1.0 + pow(freq,2) )
+	  + 44.0 * pow(freq,2) / (4100.0 + pow(freq,2))
+	  + 0.000275 * pow(freq,2) + 0.003 );
+
+//  return (0.11 * pow(freq,2) / (1.0 + pow(freq,2) )
+//      + 44.0 * pow(freq,2) / (4100.0 + pow(freq,2) )
+//      + 0.000275 * pow(freq,2) + 0.0003 );
 }
 
 //2.0 verison below:

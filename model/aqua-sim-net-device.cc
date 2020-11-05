@@ -686,6 +686,7 @@ AquaSimNetDevice::SetTransmissionStatus(TransStatus status)
     NS_LOG_DEBUG("TRANSMITTING PACKET");
   else if(status == NIDLE && m_transStatus == SEND)
     NS_LOG_DEBUG("END TRANSMITTING PACKET");
+
   m_transStatus = status;
 
  if (!m_mac->SendQueueEmpty()) {

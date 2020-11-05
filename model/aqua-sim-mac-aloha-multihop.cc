@@ -19,7 +19,7 @@
  */
 
 
-#include "aqua-sim-mac-aloha.h"
+#include "aqua-sim-mac-aloha-multihop.h"
 #include "aqua-sim-pt-tag.h"
 #include "aqua-sim-header.h"
 #include "aqua-sim-header-mac.h"
@@ -34,15 +34,15 @@
 
 namespace ns3{
 
-NS_LOG_COMPONENT_DEFINE("AquaSimAloha");
-NS_OBJECT_ENSURE_REGISTERED(AquaSimAloha);
+NS_LOG_COMPONENT_DEFINE("AquaSimAlohaMultihop");
+NS_OBJECT_ENSURE_REGISTERED(AquaSimAlohaMultihop);
 
-/*===========================AquaSimAlohaAckRetry Timer===========================*/
-long AquaSimAlohaAckRetry::m_idGenerator = 0;
+/*===========================AquaSimAlohaMultihopAckRetry Timer===========================*/
+long AquaSimAlohaMultihopAckRetry::m_idGenerator = 0;
 
 
 //construct function
-AquaSimAloha::AquaSimAloha() :
+AquaSimAlohaMultihop::AquaSimAlohaMultihop() :
 	AquaSimMac(), m_boCounter(0), ALOHA_Status(PASSIVE), m_persistent(1.0),
 	m_AckOn(1), m_minBackoff(0.0), m_maxBackoff(1.5), m_maxACKRetryInterval(0.05),
 	m_blocked(false)
@@ -50,50 +50,50 @@ AquaSimAloha::AquaSimAloha() :
 	m_rand = CreateObject<UniformRandomVariable> ();
 }
 
-AquaSimAloha::~AquaSimAloha()
+AquaSimAlohaMultihop::~AquaSimAlohaMultihop()
 {
 }
 
 TypeId
-AquaSimAloha::GetTypeId(void)
+AquaSimAlohaMultihop::GetTypeId(void)
 {
-  static TypeId tid = TypeId("ns3::AquaSimAloha")
+  static TypeId tid = TypeId("ns3::AquaSimAlohaMultihop")
       .SetParent<AquaSimMac>()
-      .AddConstructor<AquaSimAloha>()
+      .AddConstructor<AquaSimAlohaMultihop>()
       .AddAttribute("Persistent", "Persistence of sending data packets",
 	DoubleValue(1.0),
 //	DoubleValue(0.01),
-	MakeDoubleAccessor (&AquaSimAloha::m_persistent),
+	MakeDoubleAccessor (&AquaSimAlohaMultihop::m_persistent),
 	MakeDoubleChecker<double>())
       .AddAttribute("AckOn", "If acknowledgement is on",
 	IntegerValue(1),
-	MakeIntegerAccessor (&AquaSimAloha::m_AckOn),
+	MakeIntegerAccessor (&AquaSimAlohaMultihop::m_AckOn),
 	MakeIntegerChecker<int>())
       .AddAttribute("MinBackoff", "Minimum back off time",
 	DoubleValue(0.0),
-	MakeDoubleAccessor (&AquaSimAloha::m_minBackoff),
+	MakeDoubleAccessor (&AquaSimAlohaMultihop::m_minBackoff),
 	MakeDoubleChecker<double>())
       .AddAttribute("MaxBackoff", "Maximum back off time",
 	DoubleValue(1.5),
-	MakeDoubleAccessor (&AquaSimAloha::m_maxBackoff),
+	MakeDoubleAccessor (&AquaSimAlohaMultihop::m_maxBackoff),
 	MakeDoubleChecker<double>())
       .AddAttribute("WaitAckTime", "Acknowledgement wait time (seconds)",
         DoubleValue(0.03),
-        MakeDoubleAccessor (&AquaSimAloha::m_waitACKTimeOffset),
+        MakeDoubleAccessor (&AquaSimAlohaMultihop::m_waitACKTimeOffset),
 	MakeDoubleChecker<double>())
     ;
   return tid;
 }
 
 int64_t
-AquaSimAloha::AssignStreams (int64_t stream)
+AquaSimAlohaMultihop::AssignStreams (int64_t stream)
 {
   NS_LOG_FUNCTION (this << stream);
   m_rand->SetStream(stream);
   return 1;
 }
 
-void AquaSimAloha::DoBackoff()
+void AquaSimAlohaMultihop::DoBackoff()
 {
   //NS_LOG_FUNCTION(this);
   Time BackoffTime=Seconds(m_rand->GetValue(m_minBackoff,m_maxBackoff));
@@ -102,7 +102,7 @@ void AquaSimAloha::DoBackoff()
     {
       ALOHA_Status = BACKOFF;
 			NS_LOG_INFO("DoBackoff: " << BackoffTime.ToDouble(Time::S));
-      Simulator::Schedule(BackoffTime, &AquaSimAloha::SendDataPkt, this);
+      Simulator::Schedule(BackoffTime, &AquaSimAlohaMultihop::SendDataPkt, this);
     }
   else
     {
@@ -116,7 +116,7 @@ void AquaSimAloha::DoBackoff()
   }
 }
 
-void AquaSimAloha::ProcessPassive()
+void AquaSimAlohaMultihop::ProcessPassive()
 {
   if (ALOHA_Status == PASSIVE && !m_blocked) {
     if (!PktQ_.empty() ) {
@@ -125,7 +125,7 @@ void AquaSimAloha::ProcessPassive()
 	}
 }
 
-void AquaSimAloha::StatusProcess(bool isAck)
+void AquaSimAlohaMultihop::StatusProcess(bool isAck)
 {
   //m_device->SetTransmissionStatus(NIDLE);
 
@@ -150,7 +150,7 @@ void AquaSimAloha::StatusProcess(bool isAck)
 
 /*===========================Send and Receive===========================*/
 
-bool AquaSimAloha::TxProcess(Ptr<Packet> pkt)
+bool AquaSimAlohaMultihop::TxProcess(Ptr<Packet> pkt)
 {
   //callback to higher level, should be implemented differently
   //Scheduler::instance().schedule(&CallBack_handler, &m_callbackEvent, CALLBACK_DELAY);
@@ -190,7 +190,7 @@ bool AquaSimAloha::TxProcess(Ptr<Packet> pkt)
 }
 
 
-void AquaSimAloha::SendDataPkt()
+void AquaSimAlohaMultihop::SendDataPkt()
 {
 	NS_LOG_FUNCTION(this);
   double P = m_rand->GetValue(0,1);
@@ -215,7 +215,7 @@ void AquaSimAloha::SendDataPkt()
 }
 
 
-void AquaSimAloha::SendPkt(Ptr<Packet> pkt)
+void AquaSimAlohaMultihop::SendPkt(Ptr<Packet> pkt)
 {
 	NS_LOG_FUNCTION(this);
   AquaSimHeader asHeader;
@@ -244,7 +244,7 @@ void AquaSimAloha::SendPkt(Ptr<Packet> pkt)
 				if ((alohaH.GetDA() != AquaSimAddress::GetBroadcast()) && m_AckOn) {
 				  NS_LOG_DEBUG("Set status to WAIT_ACK");
 				  ALOHA_Status = WAIT_ACK;
-				  m_waitACKTimer = Simulator::Schedule(ertt,&AquaSimAloha::DoBackoff, this);
+				  m_waitACKTimer = Simulator::Schedule(ertt,&AquaSimAlohaMultihop::DoBackoff, this);
 				  NS_LOG_DEBUG("estimated RTT: " << ertt.GetSeconds () << "seconds");
 				  NS_LOG_DEBUG("launch waitACKTimer");
 				}
@@ -269,7 +269,7 @@ void AquaSimAloha::SendPkt(Ptr<Packet> pkt)
       SendDown(pkt);
 
       m_blocked = true;
-      Simulator::Schedule(txtime + Seconds(0.01), &AquaSimAloha::StatusProcess, this, m_isAck);
+      Simulator::Schedule(txtime + Seconds(0.01), &AquaSimAlohaMultihop::StatusProcess, this, m_isAck);
       break;
 		}
     case RECV:
@@ -297,7 +297,7 @@ void AquaSimAloha::SendPkt(Ptr<Packet> pkt)
   }
 }
 
-bool AquaSimAloha::RecvProcess(Ptr<Packet> pkt)
+bool AquaSimAlohaMultihop::RecvProcess(Ptr<Packet> pkt)
 {
 	NS_LOG_FUNCTION(m_device->GetAddress());
   AquaSimHeader asHeader;
@@ -364,7 +364,7 @@ bool AquaSimAloha::RecvProcess(Ptr<Packet> pkt)
   return true;
 }
 
-void AquaSimAloha::ReplyACK(Ptr<Packet> pkt) //sendACK
+void AquaSimAlohaMultihop::ReplyACK(Ptr<Packet> pkt) //sendACK
 {
 	NS_LOG_FUNCTION(this);
 	//wouldn't it make more sense to just include aloha header SA instead of pkt for parameters?
@@ -380,7 +380,7 @@ void AquaSimAloha::ReplyACK(Ptr<Packet> pkt) //sendACK
   pkt=0;
 }
 
-Ptr<Packet> AquaSimAloha::MakeACK(AquaSimAddress Data_Sender)
+Ptr<Packet> AquaSimAlohaMultihop::MakeACK(AquaSimAddress Data_Sender)
 {
 	NS_LOG_FUNCTION(this);
   Ptr<Packet> pkt = Create<Packet>();
@@ -405,13 +405,13 @@ Ptr<Packet> AquaSimAloha::MakeACK(AquaSimAddress Data_Sender)
   return pkt;
 }
 
-AquaSimAlohaAckRetry::~AquaSimAlohaAckRetry()
+AquaSimAlohaMultihopAckRetry::~AquaSimAlohaMultihopAckRetry()
 {
 	m_mac=0;
 	m_pkt=0;
 }
 
-void AquaSimAloha::ProcessRetryTimer(AquaSimAlohaAckRetry* timer)
+void AquaSimAlohaMultihop::ProcessRetryTimer(AquaSimAlohaMultihopAckRetry* timer)
 {
   Ptr<Packet> pkt = timer->Pkt();
   if( RetryTimerMap_.count(timer->Id()) != 0 ) {
@@ -423,23 +423,23 @@ void AquaSimAloha::ProcessRetryTimer(AquaSimAlohaAckRetry* timer)
   SendPkt(pkt);
 }
 
-void AquaSimAloha::RetryACK(Ptr<Packet> ack)
+void AquaSimAlohaMultihop::RetryACK(Ptr<Packet> ack)
 {
   NS_LOG_FUNCTION(this);
 
-  AquaSimAlohaAckRetry* timer = new AquaSimAlohaAckRetry(this, ack);
-  Simulator::Schedule(Seconds(m_maxACKRetryInterval*m_rand->GetValue()), &AquaSimAloha::ProcessRetryTimer, this, timer);
+  AquaSimAlohaMultihopAckRetry* timer = new AquaSimAlohaMultihopAckRetry(this, ack);
+  Simulator::Schedule(Seconds(m_maxACKRetryInterval*m_rand->GetValue()), &AquaSimAlohaMultihop::ProcessRetryTimer, this, timer);
   RetryTimerMap_[timer->Id()] = timer;
 }
 
-void AquaSimAloha::DoDispose()
+void AquaSimAlohaMultihop::DoDispose()
 {
 	NS_LOG_FUNCTION(this);
 	while(!PktQ_.empty()) {
 		PktQ_.front()=0;
 		PktQ_.pop();
 	}
-  for (std::map<long,AquaSimAlohaAckRetry*>::iterator it=RetryTimerMap_.begin(); it!=RetryTimerMap_.end(); ++it) {
+  for (std::map<long,AquaSimAlohaMultihopAckRetry*>::iterator it=RetryTimerMap_.begin(); it!=RetryTimerMap_.end(); ++it) {
 		delete it->second;
 		it->second=0;
 	}

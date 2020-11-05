@@ -84,9 +84,13 @@ PktSubmissionTimer::AddNewSubmission(Ptr<IncomingPacket> inPkt) {
   /* Need to calcuate modulation here, aka how long until entire packet is received */
   Time transmissionDelay = m_sC->m_phy->CalcTxTime(asHeader.GetSize());
 
+//  std::cout << "AS_HEADER SIZE: " << asHeader.GetSize() << "\n";
+
   NS_LOG_FUNCTION(this << "incomingPkt:" << inPkt << "txtime:" <<
                     asHeader.GetTxTime() << " transmissionDelay:" <<
                     transmissionDelay.ToDouble(Time::S));
+
+//  std::cout << "TRANSMISSION DELAY: " << transmissionDelay << "\n";
 
   Simulator::Schedule(transmissionDelay,&PktSubmissionTimer::Expire, this, inPkt);
 
@@ -138,6 +142,7 @@ AquaSimSignalCache::AddNewPacket(Ptr<Packet> p){
   */
   // TODO is packet collision even really tested or dealt with in this class???
   AquaSimHeader asHeader;
+
   p->PeekHeader(asHeader);
 
   Ptr<IncomingPacket> inPkt = CreateObject<IncomingPacket>(p,
@@ -186,6 +191,7 @@ AquaSimSignalCache::SubmitPkt(Ptr<IncomingPacket> inPkt) {
 
   status = inPkt->status;
   Ptr<Packet> p = inPkt->packet;
+
   DeleteIncomingPacket(p); //object pointed by inPkt is deleted here
   /**
   * modem has no idea about invalid packets, so release

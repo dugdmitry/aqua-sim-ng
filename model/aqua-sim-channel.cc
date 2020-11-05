@@ -56,6 +56,7 @@ AquaSimChannel::GetTypeId ()
 {
   static TypeId tid = TypeId("ns3::AquaSimChannel")
     .SetParent<Channel> ()
+    .SetGroupName ("AquaSimNG")
     .AddConstructor<AquaSimChannel> ()
     .AddAttribute ("SetProp", "A pointer to set the propagation model.",
        PointerValue (0),
@@ -86,7 +87,7 @@ AquaSimChannel::SetPropagation (Ptr<AquaSimPropagation> prop)
 }
 
 Ptr<NetDevice>
-AquaSimChannel::GetDevice (uint32_t i) const
+AquaSimChannel::GetDevice (std::size_t i) const
 {
   return m_deviceList[i];
 }
@@ -98,7 +99,7 @@ AquaSimChannel::GetId (void) const
   return 0;
 }
 
-uint32_t
+std::size_t
 AquaSimChannel::GetNDevices (void) const
 {
   return m_deviceList.size();
@@ -136,7 +137,6 @@ AquaSimChannel::Recv(Ptr<Packet> p, Ptr<AquaSimPhy> phy)
   /*std::cout << "\nChannel: @Recv check:\n";
   p->Print(std::cout);
   std::cout << "\n";*/
-
   NS_LOG_FUNCTION(this << p << phy);
   NS_ASSERT(p != NULL || phy != NULL);
   return SendUp(p,phy);

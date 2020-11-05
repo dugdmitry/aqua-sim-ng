@@ -111,7 +111,8 @@ namespace ns3 {
 
     virtual Ptr<AquaSimSignalCache> GetSignalCache() = 0;
 
-
+    // Add method for setting Pt - transmission power in Watts
+    virtual void SetPt(double p_t) = 0;
     virtual double GetPt() = 0;
     virtual double GetRXThresh() = 0;
     virtual double GetCSThresh() = 0;
@@ -125,6 +126,8 @@ namespace ns3 {
     virtual double GetLambda() = 0;
 
     virtual int PktRecvCount() = 0; //debugging
+    // Check collision status of the first received packet when net_device was in IDLE state
+    virtual void CollisionCheck(Ptr<Packet> packet) = 0;
 
     /*
     * Used for some mac/routing protocols and for restricting packet range within range-propagation for channel module.

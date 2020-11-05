@@ -105,6 +105,13 @@ AquaSimEnergyModel::DoGetCurrentA(void) const
 }
 
 void
+AquaSimEnergyModel::HandleEnergyChanged(void)
+{
+  NS_LOG_FUNCTION (this);
+  //Not currently used.
+}
+
+void
 AquaSimEnergyModel::HandleEnergyDepletion(void)
 {
   NS_LOG_FUNCTION(this);
