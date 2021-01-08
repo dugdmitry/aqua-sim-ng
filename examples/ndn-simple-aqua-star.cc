@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /**
- * Use aqua-sim-ng acoustic channel for the NDN application 
+ * Use aqua-sim-ng acoustic channel for the NDN application
+ * Star-topology is used, with a sink-node in the middle
  **/
 
 #include "ns3/core-module.h"
@@ -16,7 +17,7 @@
 using namespace std;
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE("ndn.AquaExample");
+NS_LOG_COMPONENT_DEFINE("ndn.StarAqua");
 
 /*
 This is a simple example, showing how to use aqua-sim-ng stack with NDN applications.

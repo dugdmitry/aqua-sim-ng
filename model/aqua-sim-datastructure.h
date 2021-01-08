@@ -49,7 +49,7 @@
 #define EXPENSION_DATA 16
 
 // next hop status
-#define UNKNOWN 1
+// #define UNKNOWN 1       // this needs to be commented out to be compatible with ndnSIM_2.8
 #define FRESHED 2
 #define DEAD 3
 //#define SUPPRESSED 4
