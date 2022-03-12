@@ -378,6 +378,10 @@ public:
   // Return an amount of nodes in the schedule (node_list)
   uint8_t GetNodesAmount() const;
 
+  // Set/get coordinates from request/reply
+  void SetCoordinates(Vector coords);
+  Vector GetCoordinates();
+
   //inherited methods
   virtual uint32_t GetSerializedSize(void) const;
   virtual void Serialize (Buffer::Iterator start) const;
@@ -393,7 +397,40 @@ private:
   uint64_t m_node_list = 0;
   // Schedule (delay) in milliseconds for given nodes
   std::map<uint8_t, uint16_t> m_delays_ms;
+  // store coordinates for cc-request
+  uint32_t m_x_coord;
+  uint32_t m_y_coord;
+  uint32_t m_z_coord;
 };  // class JammingMacHeader
+
+/**
+ * \brief TR-MAC header
+ */
+class TrMacHeader : public Header
+{
+public:
+	TrMacHeader();
+  virtual ~TrMacHeader();
+  static TypeId GetTypeId(void);
+
+  void SetPType(uint8_t m_ptype);
+  uint8_t GetPType();
+
+  void SetNextNodeId(uint8_t node_id);
+  uint8_t GetNextNodeId();
+
+  //inherited methods
+  virtual uint32_t GetSerializedSize(void) const;
+  virtual void Serialize (Buffer::Iterator start) const;
+  virtual uint32_t Deserialize (Buffer::Iterator start);
+  virtual void Print (std::ostream &os) const;
+  virtual TypeId GetInstanceTypeId(void) const;
+
+private:
+  // Packet type: 0 - DATA, 1 - Token
+  uint8_t m_ptype;
+  uint8_t m_next_sender_id;
+};  // class TrMacHeader
 
 /**
  * \brief mac-routing header

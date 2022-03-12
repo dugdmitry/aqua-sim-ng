@@ -35,6 +35,8 @@ def build(bld):
         'helper/aqua-sim-helper.cc',
         'model/aqua-sim-mac-broadcast.cc',
         'model/aqua-sim-mac-jamming.cc',
+        'model/aqua-sim-mac-trmac.cc',
+        'model/aqua-sim-mac-tdma.cc',
         'model/aqua-sim-mac-routing.cc',
         'model/aqua-sim-mac-routing-aloha.cc',
         'model/aqua-sim-mac-fama.cc',
@@ -79,6 +81,7 @@ def build(bld):
         'model/aqua-sim-routing-dummy.cc',
         'model/aqua-sim-routing-ddbr.cc',
         'model/lib/svm.cpp',
+        'model/aqua-sim-time-tag.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('aqua-sim-ng')
@@ -115,6 +118,8 @@ def build(bld):
         'helper/aqua-sim-helper.h',
         'model/aqua-sim-mac-broadcast.h',
         'model/aqua-sim-mac-jamming.h',
+        'model/aqua-sim-mac-trmac.h',
+        'model/aqua-sim-mac-tdma.h',
         'model/aqua-sim-mac-routing.h',
         'model/aqua-sim-mac-routing-aloha.h',
         'model/aqua-sim-mac-fama.h',
@@ -160,6 +165,7 @@ def build(bld):
         'model/aqua-sim-routing-dummy.h',
         'model/aqua-sim-routing-ddbr.h',
         'model/lib/svm.h',
+        'model/aqua-sim-time-tag.h',
         ]
 
     if bld.env.ENABLE_EXAMPLES:

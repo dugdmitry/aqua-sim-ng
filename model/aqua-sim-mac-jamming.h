@@ -22,6 +22,9 @@
 #define AQUA_SIM_MAC_JAMMING_H
 
 #include "aqua-sim-mac.h"
+#include "aqua-sim-time-tag.h"
+#include "aqua-sim-header.h"
+#include "aqua-sim-header-mac.h"
 
 namespace ns3 {
 
@@ -51,6 +54,8 @@ public:
 
   // Start Channel-Competition request
   void StartCC();
+  // Start Data-send phase
+  void StartData();
   // Send a packet using pure ALOHA channel access
   void SendPacketAloha(Ptr<Packet> p);
   // Return a backoff value for ALOHA
@@ -65,6 +70,19 @@ public:
   // Return a cs-reply packet based on a given schedule
   Ptr<Packet> GenerateCsReply(std::map<uint32_t, uint16_t> schedule);
 
+  // get pairs from txt file
+  std::map<uint32_t, uint32_t> getPairsFromFile(uint32_t nNodes, char matrixString[]);
+  // get distance-delay between two nodes in milliseconds
+  uint16_t getDistanceDelayMs(uint32_t node1, uint32_t node2);
+  // calculate vulnerable area for a pair of nodes
+  void calcVulnerableArea(uint32_t node1, uint32_t node2);
+  // calculate energy needed for a direct transmission
+  double calcEnergy(double dist);
+  void calcTotalEnergy(uint32_t node1, uint32_t node2);
+
+  // initialize the cycle at the beginning
+  void initCycle();
+
 protected:
   virtual void DoDispose();
 
@@ -72,20 +90,35 @@ private:
   Ptr<UniformRandomVariable> m_rand;
   uint16_t m_packetSize;
   std::list<Ptr<Packet>> m_sendQueue;
-  // Define timer to accumulate all the incoming CC-requests when it runs
-  Timer m_sink_timer;
-  // Accumulation time of the incoming cc-requests
-  Time m_cc_accumulation_time;
+
   // Interval between cc-requests at the sender side (nodes)
   Time m_epoch_time;
   // Store the incoming cc-requests in a map: <node_id>:<coords>
   std::map<uint32_t, Vector> m_request_list;
   // Guard interval in-between packets in a train
   Time m_guard_time;
-  // Track the very first cc-procedure
-  bool m_firstCcInit = false;
   // Keep track of a number of cc-->cs-->data phases
   uint32_t m_epoch_no = 0;
+
+  // store vulnerable area values
+  std::vector<double> m_vulnerable_list;
+  std::vector<double> m_energy_list;
+
+  // this is a delay of a CS-reply sent from sink to sensor-nodes
+  Time m_cs_delay;
+  // this is a delay to accomodate DATA-packets transmissions from sensor-nodes to a sink
+  Time m_data_delay = Seconds(10);
+
+  // store the last schedule received from the sink
+  JammingMacHeader m_current_schedule;
+
+  // tracebacks to count the stats
+  TracedCallback<double> m_trace_area;
+  TracedCallback<double> m_trace_energy;
+  TracedCallback<uint32_t> m_scheduled_pkts;
+  TracedCallback<> m_recv_data_pkts;
+  TracedCallback<uint32_t> m_queue_size;
+  TracedCallback<uint32_t> m_e2e_delay;
 
 };  // class AquaSimJammingMac
 

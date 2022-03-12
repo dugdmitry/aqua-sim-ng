@@ -902,7 +902,7 @@ JammingMacHeader::GetSerializedSize(void) const
 	// CC-request
 	if (m_ptype == 1)
 	{
-		return 2;
+		return 2 + 3*4; // (x,y,z) coordinates each 4-byte long
 	}
 	// CS-reply (contains a schedule)
 	if (m_ptype == 2)
@@ -934,6 +934,13 @@ JammingMacHeader::Serialize (Buffer::Iterator start) const
       }
     }
   }
+  if (m_ptype == 1)
+  {
+    // serialize coordinates
+    i.WriteU32(m_x_coord);
+    i.WriteU32(m_y_coord);
+    i.WriteU32(m_z_coord);
+  }
 }
 
 uint32_t
@@ -954,6 +961,12 @@ JammingMacHeader::Deserialize (Buffer::Iterator start)
         m_delays_ms.insert(std::make_pair(j, i.ReadU16()));
       }
     }
+  }
+  if (m_ptype == 1)
+  {
+    m_x_coord = i.ReadU32();
+    m_y_coord = i.ReadU32();
+    m_z_coord = i.ReadU32();
   }
   return GetSerializedSize();
 }
@@ -999,6 +1012,21 @@ JammingMacHeader::GetSchedule(uint8_t node_id)
 }
 
 void
+JammingMacHeader::SetCoordinates(Vector coords)
+{
+  m_x_coord = coords.x * 1000000;
+  m_y_coord = coords.y * 1000000;
+  m_z_coord = coords.z * 1000000;
+}
+
+Vector
+JammingMacHeader::GetCoordinates()
+{
+  Vector coords = Vector((double) m_x_coord/1000000, (double) m_y_coord/1000000, (double) m_z_coord/1000000);
+  return coords;
+}
+
+void
 JammingMacHeader::SetNodeBit(uint8_t node_id)
 {
   int mask = 1 << node_id;  // node_id serves as position
@@ -1034,6 +1062,90 @@ JammingMacHeader::GetNodesAmount() const
     n >>= 1; 
   }
   return count;
+}
+
+/*
+ * TR-MAC
+ */
+TrMacHeader::TrMacHeader()
+{
+}
+
+TrMacHeader::~TrMacHeader()
+{
+}
+
+TypeId
+TrMacHeader::GetTypeId()
+{
+  static TypeId tid = TypeId("ns3::TrMacHeader")
+    .SetParent<Header>()
+    .AddConstructor<TrMacHeader>()
+  ;
+  return tid;
+}
+
+uint32_t
+TrMacHeader::GetSerializedSize(void) const
+{
+  return 1+1; // ptype + next_sender_id
+}
+
+void
+TrMacHeader::Serialize (Buffer::Iterator start) const
+{
+  Buffer::Iterator i = start;
+  i.WriteU8 ((uint8_t)(m_ptype));
+  i.WriteU8 ((uint8_t)(m_next_sender_id));
+}
+
+uint32_t
+TrMacHeader::Deserialize (Buffer::Iterator start)
+{
+  Buffer::Iterator i = start;
+  m_ptype = i.ReadU8();
+  m_next_sender_id = i.ReadU8();
+  return GetSerializedSize();
+}
+
+void
+TrMacHeader::Print (std::ostream &os) const
+{
+  os << "TR-MAC Header: ";
+
+  os << "PType=" << int(m_ptype) << " ";
+  os << "NextId=" << int(m_next_sender_id) << " ";
+  os << "\n";
+}
+
+TypeId
+TrMacHeader::GetInstanceTypeId(void) const
+{
+  return GetTypeId();
+}
+
+void
+TrMacHeader::SetPType(uint8_t ptype)
+{
+	m_ptype = ptype;
+}
+
+uint8_t
+TrMacHeader::GetPType()
+{
+	return m_ptype;
+}
+
+void
+TrMacHeader::SetNextNodeId(uint8_t next_node_id)
+{
+  m_next_sender_id = next_node_id;
+}
+
+uint8_t
+TrMacHeader::GetNextNodeId()
+{
+  return m_next_sender_id;
 }
 
 /*
