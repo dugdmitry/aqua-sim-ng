@@ -46,11 +46,12 @@ cd ns-allinone-3.40/ns-3.40/
 ./ns3 build
 ```
 
-- after the initial NS-3 build, copy `aqua-sim-ng` code into `src/` folder:
+- after the initial NS-3 build, copy `aqua-sim-ng` code into `src/` folder, use `routing_dev` branch for development:
 
 ```
 cd src/
-git clone https://github.com/rmartin5/aqua-sim-ng.git 
+git clone https://github.com/dugdmitry/aqua-sim-ng.git
+git checkout routing_dev
 ```
 
 - reconfigure ns-3 project and build the new module:
