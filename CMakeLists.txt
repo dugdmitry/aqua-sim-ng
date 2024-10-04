@@ -72,6 +72,7 @@ build_lib(
         helper/aqua-sim-traffic-gen-helper.cc
         model/aqua-sim-traffic-gen.cc
         model/aqua-sim-routing-dummy.cc
+        model/aqua-sim-routing-efrlr.cc
         model/aqua-sim-routing-ddbr.cc
         model/lib/svm.cpp
     HEADER_FILES
@@ -147,6 +148,7 @@ build_lib(
         helper/aqua-sim-traffic-gen-helper.h
         model/aqua-sim-traffic-gen.h
         model/aqua-sim-routing-dummy.h
+        model/aqua-sim-routing-efrlr.h
         model/aqua-sim-routing-ddbr.h
         model/lib/svm.h
     LIBRARIES_TO_LINK ${libnetwork}
@@ -280,6 +282,16 @@ build_lib_example(
 build_lib_example(
     NAME JmacTest
     SOURCE_FILES examples/jmac_test.cc
+    LIBRARIES_TO_LINK ${libnetwork}
+                      ${libenergy}
+                      ${libmobility}
+                      ${libapplications}
+                      ${libaqua-sim-ng}
+)
+
+build_lib_example(
+    NAME EfrlrTest
+    SOURCE_FILES examples/efrlr_routing_test.cc
     LIBRARIES_TO_LINK ${libnetwork}
                       ${libenergy}
                       ${libmobility}

@@ -67,6 +67,82 @@ After that, you should be able to run example scripts located under `src/aqua-si
 --------------------------------------
 ## Running Examples
 
+### EFRLR protocol developemnt
+
+EFRLR - Environmental Friendly Reinforcement Learning based Routing protocol. TBD.
+
+Usage example:
+```
+./ns3 run "EfrlrTest --seed=0 --psize=100 --rate=24 --nodes=2 --sinks=1 --simStop=1800 --center_x=100 --center_z=100 --radius=100 --depth=100 --lambda=0.1"
+```
+where:
+
+`EfrlrTest`: name of the simulation script that executes `efrlr_routing_test.cc` script
+
+`--seed`: seed for pseudo-random generator to follow
+
+`--psize`: packet size that nodes generate, bytes
+
+`--rate`: channel data rate, bps
+
+`--nodes`: number of nodes that generate traffic
+
+`--sinks`: number of sinks that receive traffic from the nodes
+
+`--simStop`: total simulation time, seconds
+
+`--center_x:`: center of a circular bottom: x-coordinate, meters
+
+`--center_z:`: center of a circular bottom: z-coordinate, meters
+
+`--radius:`: radius of the area where to place random nodes at, meters
+
+`--depth:`: depth of the bottom, meters
+
+`--lambda`: application traffic rate, following Poisson distribution, pkts/sec
+
+#### Output example
+
+The script ouptus the following:
+
+```
+Sent Pkts(Source_NetDevice->Stack):
+ (NetworkTotal) 80
+SendUp Pkts(Sink_RoutingLayer):
+ (NetworkTotal) 80
+Recv Pkts(@PhyLayer):
+ (NetworkTotal) 160
+fin.
+```
+where:
+
+`NetworkTotal`: total number of packets generated during simulation
+
+`SendUp`: total number of packets received and forwarded to the sink App layer
+
+`Recv Pkts`: total number of packets sensed by all nodes at PHY layer of the network
+
+#### Development notes
+
+Please refer to `model/aqua-sim-routing-efrlr.cc` file for implementation details. Main interfaces are the following:
+
+`AquaSimRoutingEfrlr::Recv()`:
+
+Method that processes all packets incoming from both App (outbound) and MAC (inbound) layers.
+
+`AquaSimRoutingEfrlr::MACsend()`:
+
+Method that sends packets down to network, i.e. MAC/PHY layers.
+
+`AquaSimRoutingEfrlr::DataForSink()`:
+
+Method that delivers incoming packets up to the App layer.
+
+`AquaSimRoutingEfrlr::PrintGlobalTopology()`:
+
+Method that retreives global topological information of the nodes.
+
+
 ### LIBRA MAC protocol
 
 LIBRA MAC protocol is a MAC protocol for UWSNs with multi-hop transmission range control capabilities, powered by Reinforcement Learning for adaptive route selection. More description can be found in the paper [1] (See `References` section down below).
